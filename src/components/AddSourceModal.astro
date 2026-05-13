@@ -1,0 +1,40 @@
+---
+import type { Category } from '../lib/types';
+
+const { categories } = Astro.props as { categories: Category[] };
+---
+
+<dialog
+  id="add-source-modal"
+  class="bg-zinc-800 text-zinc-100 rounded-2xl p-6 w-full max-w-md shadow-2xl backdrop:bg-black/60 open:flex open:flex-col gap-4"
+>
+  <h2 class="text-lg font-bold">Nouvelle source</h2>
+  <form id="add-source-form" class="flex flex-col gap-4">
+    <input name="name" placeholder="Nom de la source" required class="input" />
+    <input name="url" type="url" placeholder="URL du flux (RSS, API…)" required class="input" />
+    <div>
+      <label class="block text-sm text-zinc-400 mb-1">Type</label>
+      <select name="type" class="input">
+        <option value="rss">RSS / Atom</option>
+        <option value="devto">Dev.to</option>
+        <option value="reddit">Reddit</option>
+        <option value="youtube">YouTube</option>
+      </select>
+    </div>
+    <div>
+      <p class="text-sm text-zinc-400 mb-2">Catégories associées</p>
+      <div id="source-categories-list" class="flex flex-wrap gap-x-4 gap-y-2">
+        {categories.map((cat) => (
+          <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+            <input type="checkbox" name="categories" value={cat.id} class="accent-indigo-400" />
+            {cat.name}
+          </label>
+        ))}
+      </div>
+    </div>
+    <div class="flex justify-end gap-3 pt-2">
+      <button type="button" id="cancel-source" class="btn-ghost">Annuler</button>
+      <button type="submit" class="btn-primary">Ajouter</button>
+    </div>
+  </form>
+</dialog>

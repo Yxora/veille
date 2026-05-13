@@ -1,0 +1,79 @@
+---
+import type { Source, Category } from '../lib/types';
+import sourcesData from '../data/sources.json';
+import categoriesData from '../data/categories.json';
+import { fetchAllSources } from '../lib/sources';
+import { annotateItems } from '../lib/categories';
+
+import Header from '../components/Header.astro';
+import ArticleCard from '../components/ArticleCard.astro';
+import ThemeSelector from '../components/ThemeSelector.astro';
+import SourceFilter from '../components/SourceFilter.astro';
+import AddCategoryModal from '../components/AddCategoryModal.astro';
+import AddSourceModal from '../components/AddSourceModal.astro';
+import ContentTypeTabs from '../components/ContentTypeTabs.astro';
+
+import '../styles/global.css';
+
+Astro.response.headers.set('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
+
+const sources = sourcesData as Source[];
+const baseCategories = categoriesData as Category[];
+
+let allItems = await fetchAllSources(sources).catch((err) => {
+  console.error('[Veille] fetchAllSources error:', err);
+  return [];
+});
+
+allItems = annotateItems(allItems, baseCategories);
+allItems.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+
+const itemsJson = JSON.stringify(allItems);
+const sourcesJson = JSON.stringify(sources);
+const categoriesJson = JSON.stringify(baseCategories);
+---
+
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Veille tech</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+</head>
+<body class="bg-zinc-900 text-zinc-100 min-h-screen">
+  <Header />
+
+  <script id="veille-data" type="application/json" set:html={itemsJson}></script>
+  <script id="veille-sources" type="application/json" set:html={sourcesJson}></script>
+  <script id="veille-categories" type="application/json" set:html={categoriesJson}></script>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <div class="flex flex-wrap gap-3 items-center mb-6">
+      <ThemeSelector categories={baseCategories} />
+      <SourceFilter sources={sources} />
+      <button id="open-add-category" class="btn-secondary">+ Catégorie</button>
+      <button id="open-add-source" class="btn-secondary">+ Source</button>
+      <span class="ml-auto text-xs text-zinc-500">
+        <span id="article-count">{allItems.length}</span> articles
+      </span>
+    </div>
+
+    <ContentTypeTabs />
+
+    <div id="articles-grid">
+      {/* Initial server render — island.ts replaces this immediately on load */}
+      {allItems.slice(0, 60).map((item) => <ArticleCard item={item} />)}
+    </div>
+
+    <div id="no-results" class="hidden text-center py-24 text-zinc-500">
+      Aucun article pour ce thème.
+    </div>
+  </main>
+
+  <AddCategoryModal />
+  <AddSourceModal categories={baseCategories} />
+
+  <script src="../scripts/island.ts"></script>
+</body>
+</html>

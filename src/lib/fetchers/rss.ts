@@ -1,0 +1,109 @@
+import { XMLParser } from 'fast-xml-parser';
+import type { ContentItem, Source } from '../types';
+
+const parser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: '@_',
+  isArray: (name) => ['entry', 'item'].includes(name),
+});
+
+function extractUrl(linkField: unknown): string {
+  if (typeof linkField === 'string') return linkField;
+  if (Array.isArray(linkField)) {
+    const alternate = linkField.find(
+      (l: unknown) =>
+        typeof l === 'object' &&
+        l !== null &&
+        (!(l as Record<string, unknown>)['@_rel'] ||
+          (l as Record<string, unknown>)['@_rel'] === 'alternate')
+    );
+    return (alternate as Record<string, unknown> | undefined)?.['@_href'] as string ?? '';
+  }
+  if (typeof linkField === 'object' && linkField !== null) {
+    return ((linkField as Record<string, unknown>)['@_href'] as string) ?? '';
+  }
+  return '';
+}
+
+function parseDate(raw: string | undefined): string {
+  if (!raw) return new Date(0).toISOString();
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? new Date(0).toISOString() : d.toISOString();
+}
+
+function slugify(text: string): string {
+  return text.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 40);
+}
+
+export async function fetchRss(source: Source): Promise<ContentItem[]> {
+  const res = await fetch(source.url, {
+    headers: { 'User-Agent': 'Veille/1.0 tech-dashboard' },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`RSS ${source.url} → HTTP ${res.status}`);
+
+  const xml = await res.text();
+  const root = parser.parse(xml);
+
+  // Atom feed
+  const feed = root?.feed;
+  if (feed) {
+    const entries: unknown[] = feed.entry ?? [];
+    return entries.map((e) => {
+      const entry = e as Record<string, unknown>;
+      const url = extractUrl(entry.link);
+      const rawTitle = entry.title;
+      const title =
+        typeof rawTitle === 'object' && rawTitle !== null
+          ? String((rawTitle as Record<string, unknown>)['#text'] ?? '')
+          : String(rawTitle ?? '(no title)');
+      return {
+        id: `${source.id}-${slugify(url || title)}`,
+        title: title.trim(),
+        url,
+        sourceId: source.id,
+        sourceName: source.name,
+        publishedAt: parseDate(
+          (entry.published ?? entry.updated) as string | undefined
+        ),
+        categories: [],
+        type: source.params?.contentType === 'podcast' ? 'podcast' : 'article',
+      } satisfies ContentItem;
+    });
+  }
+
+  // RSS 2.0 feed
+  const channel = root?.rss?.channel;
+  if (channel) {
+    const items: unknown[] = channel.item ?? [];
+    return items.map((i) => {
+      const item = i as Record<string, unknown>;
+      const rawLink = item.link;
+      const rawGuid = item.guid;
+      const url =
+        extractUrl(rawLink) ||
+        (typeof rawGuid === 'object' && rawGuid !== null
+          ? String((rawGuid as Record<string, unknown>)['#text'] ?? '')
+          : String(rawGuid ?? ''));
+      const rawTitle = item.title;
+      const title =
+        typeof rawTitle === 'object' && rawTitle !== null
+          ? String((rawTitle as Record<string, unknown>)['#text'] ?? '')
+          : String(rawTitle ?? '(no title)');
+      return {
+        id: `${source.id}-${slugify(url || title)}`,
+        title: title.trim(),
+        url,
+        sourceId: source.id,
+        sourceName: source.name,
+        publishedAt: parseDate(
+          (item.pubDate ?? item['dc:date']) as string | undefined
+        ),
+        categories: [],
+        type: source.params?.contentType === 'podcast' ? 'podcast' : 'article',
+      } satisfies ContentItem;
+    });
+  }
+
+  return [];
+}

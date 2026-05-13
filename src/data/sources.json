@@ -1,0 +1,165 @@
+[
+  {
+    "id": "spring-blog",
+    "name": "Spring Blog",
+    "type": "rss",
+    "url": "https://spring.io/blog.atom",
+    "defaultCategories": ["spring-boot", "java"]
+  },
+  {
+    "id": "baeldung",
+    "name": "Baeldung",
+    "type": "rss",
+    "url": "https://www.baeldung.com/feed/",
+    "defaultCategories": ["spring-boot", "java"]
+  },
+  {
+    "id": "dzone-java",
+    "name": "DZone Java",
+    "type": "rss",
+    "url": "https://feeds.dzone.com/java",
+    "defaultCategories": ["java"]
+  },
+  {
+    "id": "inside-java",
+    "name": "Inside Java",
+    "type": "rss",
+    "url": "https://inside.java/feed.xml",
+    "defaultCategories": ["java"]
+  },
+  {
+    "id": "angular-blog",
+    "name": "Angular Blog",
+    "type": "rss",
+    "url": "https://blog.angular.dev/feed",
+    "defaultCategories": ["angular"]
+  },
+  {
+    "id": "bootstrap-blog",
+    "name": "Bootstrap Blog",
+    "type": "rss",
+    "url": "https://blog.getbootstrap.com/feed.xml",
+    "defaultCategories": []
+  },
+  {
+    "id": "github-blog",
+    "name": "GitHub Blog",
+    "type": "rss",
+    "url": "https://github.blog/feed/",
+    "defaultCategories": []
+  },
+  {
+    "id": "martinfowler",
+    "name": "Martin Fowler",
+    "type": "rss",
+    "url": "https://martinfowler.com/feed.atom",
+    "defaultCategories": ["system-design", "poo-architecture"]
+  },
+  {
+    "id": "stephane-robert",
+    "name": "Stéphane Robert",
+    "type": "rss",
+    "url": "https://blog.stephane-robert.info/feed.xml",
+    "defaultCategories": ["system-design"]
+  },
+  {
+    "id": "artisan-dev",
+    "name": "Artisan Développeur",
+    "type": "rss",
+    "url": "https://artisandeveloppeur.fr/feed/",
+    "params": { "contentType": "podcast" },
+    "defaultCategories": ["katas", "poo-architecture"]
+  },
+  {
+    "id": "developpez",
+    "name": "Developpez.com",
+    "type": "rss",
+    "url": "https://www.developpez.com/index/rss",
+    "defaultCategories": ["java", "angular"]
+  },
+  {
+    "id": "sfeir",
+    "name": "Sfeir",
+    "type": "rss",
+    "url": "https://www.sfeir.dev/rss/",
+    "defaultCategories": []
+  },
+  {
+    "id": "medium-java",
+    "name": "Medium / Java",
+    "type": "rss",
+    "url": "https://medium.com/feed/tag/java",
+    "defaultCategories": ["java"]
+  },
+  {
+    "id": "medium-angular",
+    "name": "Medium / Angular",
+    "type": "rss",
+    "url": "https://medium.com/feed/tag/angular",
+    "defaultCategories": ["angular"]
+  },
+  {
+    "id": "devto-java",
+    "name": "Dev.to / Java",
+    "type": "devto",
+    "url": "https://dev.to/api/articles",
+    "params": { "tag": "java", "per_page": "20" },
+    "defaultCategories": ["java"]
+  },
+  {
+    "id": "devto-spring",
+    "name": "Dev.to / Spring",
+    "type": "devto",
+    "url": "https://dev.to/api/articles",
+    "params": { "tag": "spring", "per_page": "20" },
+    "defaultCategories": ["spring-boot"]
+  },
+  {
+    "id": "devto-angular",
+    "name": "Dev.to / Angular",
+    "type": "devto",
+    "url": "https://dev.to/api/articles",
+    "params": { "tag": "angular", "per_page": "20" },
+    "defaultCategories": ["angular"]
+  },
+  {
+    "id": "reddit-java",
+    "name": "r/java",
+    "type": "reddit",
+    "url": "https://www.reddit.com/r/java.json",
+    "params": { "limit": "25" },
+    "defaultCategories": ["java"]
+  },
+  {
+    "id": "reddit-spring",
+    "name": "r/SpringBoot",
+    "type": "reddit",
+    "url": "https://www.reddit.com/r/SpringBoot.json",
+    "params": { "limit": "25" },
+    "defaultCategories": ["spring-boot"]
+  },
+  {
+    "id": "reddit-angular",
+    "name": "r/Angular2",
+    "type": "reddit",
+    "url": "https://www.reddit.com/r/Angular2.json",
+    "params": { "limit": "25" },
+    "defaultCategories": ["angular"]
+  },
+  {
+    "id": "youtube-devoxx",
+    "name": "Devoxx France",
+    "type": "youtube",
+    "url": "https://www.googleapis.com/youtube/v3/search",
+    "params": { "channelId": "UCsVPQfo5RZErDL41LoWvk0A", "maxResults": "15" },
+    "defaultCategories": ["java", "spring-boot", "system-design"]
+  },
+  {
+    "id": "youtube-angular",
+    "name": "Angular YouTube",
+    "type": "youtube",
+    "url": "https://www.googleapis.com/youtube/v3/search",
+    "params": { "channelId": "UCbnkjWklCPE2EYuHzOVBUNw", "maxResults": "10" },
+    "defaultCategories": ["angular"]
+  }
+]

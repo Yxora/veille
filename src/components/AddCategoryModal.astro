@@ -1,0 +1,33 @@
+---
+---
+<dialog
+  id="add-category-modal"
+  class="bg-zinc-800 text-zinc-100 rounded-2xl p-6 w-full max-w-md shadow-2xl backdrop:bg-black/60 open:flex open:flex-col gap-4"
+>
+  <h2 class="text-lg font-bold">Nouvelle catégorie</h2>
+  <form id="add-category-form" class="flex flex-col gap-4">
+    <div>
+      <label class="block text-sm text-zinc-400 mb-1">Nom</label>
+      <input
+        name="name"
+        required
+        placeholder="Ex: DevOps"
+        class="input"
+      />
+    </div>
+    <div>
+      <label class="block text-sm text-zinc-400 mb-1">Mots-clés (séparés par des virgules)</label>
+      <textarea
+        name="keywords"
+        rows="3"
+        required
+        placeholder="Ex: docker, kubernetes, devops, ci/cd"
+        class="input resize-none"
+      ></textarea>
+    </div>
+    <div class="flex justify-end gap-3 pt-2">
+      <button type="button" id="cancel-category" class="btn-ghost">Annuler</button>
+      <button type="submit" class="btn-primary">Ajouter</button>
+    </div>
+  </form>
+</dialog>

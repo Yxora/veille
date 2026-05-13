@@ -1,0 +1,42 @@
+---
+import type { ContentItem } from '../lib/types';
+
+const { item } = Astro.props as { item: ContentItem };
+
+const icons: Record<string, string> = { article: '📄', video: '🎬', podcast: '🎙️' };
+const icon = icons[item.type] ?? '📄';
+
+function relativeDate(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 60) return `${m}min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d}j`;
+  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+}
+---
+
+<article
+  class="bg-zinc-800 rounded-xl p-4 flex flex-col gap-2 hover:ring-1 hover:ring-indigo-400 transition"
+  data-source={item.sourceId}
+  data-categories={item.categories.join(',')}
+  data-published={item.publishedAt}
+>
+  <div class="flex items-start gap-2">
+    <span class="text-base shrink-0 mt-0.5">{icon}</span>
+    <a
+      href={item.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      class="text-zinc-100 text-sm font-medium leading-snug hover:text-indigo-400 transition line-clamp-3"
+    >
+      {item.title}
+    </a>
+  </div>
+  <div class="flex items-center gap-2 mt-auto text-xs text-zinc-400">
+    <span class="bg-zinc-700 px-2 py-0.5 rounded-full shrink-0">{item.sourceName}</span>
+    <span>{relativeDate(item.publishedAt)}</span>
+  </div>
+</article>

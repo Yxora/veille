@@ -1,0 +1,31 @@
+---
+import type { Source } from '../lib/types';
+
+const { sources } = Astro.props as { sources: Source[] };
+---
+
+<details class="relative">
+  <summary class="cursor-pointer select-none bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-100 list-none">
+    Sources ▾
+  </summary>
+  <div
+    id="source-filter-panel"
+    class="absolute z-10 top-full mt-1 bg-zinc-800 border border-zinc-700 rounded-xl p-3 shadow-xl min-w-[220px] max-h-72 overflow-y-auto"
+  >
+    <label class="flex items-center gap-2 text-sm pb-2 border-b border-zinc-700 mb-2 cursor-pointer">
+      <input type="checkbox" id="toggle-all-sources" checked class="accent-indigo-400" />
+      <span class="font-medium">Tout sélectionner</span>
+    </label>
+    {sources.map((s) => (
+      <label class="flex items-center gap-2 text-sm py-1 cursor-pointer">
+        <input
+          type="checkbox"
+          class="source-toggle accent-indigo-400"
+          data-source-id={s.id}
+          checked
+        />
+        <span>{s.name}</span>
+      </label>
+    ))}
+  </div>
+</details>
