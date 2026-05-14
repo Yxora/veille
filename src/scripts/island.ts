@@ -133,9 +133,14 @@ function renderSection(type: string, items: ContentItem[]): string {
   </section>`;
 }
 
+const searchInput = document.getElementById('search-input') as HTMLInputElement | null;
+
+searchInput?.addEventListener('input', () => applyFilters());
+
 function applyFilters() {
   const { activeTheme, activeType, hiddenSources, userCategories, activeEnvironment } = loadState();
   const allCategories = [...baseCategories, ...userCategories];
+  const searchQuery = searchInput?.value.trim().toLowerCase() ?? '';
 
   const envSourceIds = new Set(getEnvironmentSources(activeEnvironment).map((s) => s.id));
 
@@ -146,6 +151,10 @@ function applyFilters() {
       if (!activeTheme) return true;
       const cats = matchCategories(item.title, allCategories);
       return cats.includes(activeTheme) || item.categories.includes(activeTheme);
+    })
+    .filter((item) => {
+      if (!searchQuery) return true;
+      return item.title.toLowerCase().includes(searchQuery) || item.sourceName.toLowerCase().includes(searchQuery);
     });
 
   const grid = document.getElementById('articles-grid')!;

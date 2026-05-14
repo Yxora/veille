@@ -50,6 +50,12 @@ const categoriesJson = JSON.stringify(baseCategories);
 
   <main class="max-w-7xl mx-auto px-4 py-6">
     <div class="flex flex-wrap gap-3 items-center mb-6">
+      <input
+        id="search-input"
+        type="search"
+        placeholder="Rechercher…"
+        class="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-400 w-48"
+      />
       <ThemeSelector categories={baseCategories} />
       <SourceFilter sources={sources} />
       <button id="open-add-category" class="btn-secondary">+ Catégorie</button>
