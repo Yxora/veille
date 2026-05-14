@@ -4,63 +4,72 @@
     "name": "Spring Blog",
     "type": "rss",
     "url": "https://spring.io/blog.atom",
-    "defaultCategories": ["spring-boot", "java"]
+    "defaultCategories": ["spring-boot", "java"],
+    "environment": "tech"
   },
   {
     "id": "baeldung",
     "name": "Baeldung",
     "type": "rss",
     "url": "https://www.baeldung.com/feed/",
-    "defaultCategories": ["spring-boot", "java"]
+    "defaultCategories": ["spring-boot", "java"],
+    "environment": "tech"
   },
   {
     "id": "dzone-java",
     "name": "DZone Java",
     "type": "rss",
     "url": "https://feeds.dzone.com/java",
-    "defaultCategories": ["java"]
+    "defaultCategories": ["java"],
+    "environment": "tech"
   },
   {
     "id": "inside-java",
     "name": "Inside Java",
     "type": "rss",
     "url": "https://inside.java/feed.xml",
-    "defaultCategories": ["java"]
+    "defaultCategories": ["java"],
+    "environment": "tech"
   },
   {
     "id": "angular-blog",
     "name": "Angular Blog",
     "type": "rss",
     "url": "https://blog.angular.dev/feed",
-    "defaultCategories": ["angular"]
+    "defaultCategories": ["angular"],
+    "environment": "tech"
   },
   {
     "id": "bootstrap-blog",
     "name": "Bootstrap Blog",
     "type": "rss",
     "url": "https://blog.getbootstrap.com/feed.xml",
-    "defaultCategories": []
+    "defaultCategories": [],
+    "environment": "tech"
   },
   {
     "id": "github-blog",
     "name": "GitHub Blog",
     "type": "rss",
     "url": "https://github.blog/feed/",
-    "defaultCategories": []
+    "defaultCategories": [],
+    "environment": "tech"
   },
   {
     "id": "martinfowler",
     "name": "Martin Fowler",
     "type": "rss",
     "url": "https://martinfowler.com/feed.atom",
-    "defaultCategories": ["system-design", "poo-architecture"]
+    "defaultCategories": ["system-design", "poo-architecture"],
+    "environment": "tech"
   },
   {
     "id": "stephane-robert",
     "name": "Stéphane Robert",
     "type": "rss",
     "url": "https://blog.stephane-robert.info/feed.xml",
-    "defaultCategories": ["system-design"]
+    "defaultCategories": ["system-design"],
+    "environment": "tech"
   },
   {
     "id": "artisan-dev",
@@ -68,35 +77,40 @@
     "type": "rss",
     "url": "https://artisandeveloppeur.fr/feed/",
     "params": { "contentType": "podcast" },
-    "defaultCategories": ["katas", "poo-architecture"]
+    "defaultCategories": ["katas", "poo-architecture"],
+    "environment": "tech"
   },
   {
     "id": "developpez",
     "name": "Developpez.com",
     "type": "rss",
     "url": "https://www.developpez.com/index/rss",
-    "defaultCategories": ["java", "angular"]
+    "defaultCategories": ["java", "angular"],
+    "environment": "tech"
   },
   {
     "id": "sfeir",
     "name": "Sfeir",
     "type": "rss",
     "url": "https://www.sfeir.dev/rss/",
-    "defaultCategories": []
+    "defaultCategories": [],
+    "environment": "tech"
   },
   {
     "id": "medium-java",
     "name": "Medium / Java",
     "type": "rss",
     "url": "https://medium.com/feed/tag/java",
-    "defaultCategories": ["java"]
+    "defaultCategories": ["java"],
+    "environment": "tech"
   },
   {
     "id": "medium-angular",
     "name": "Medium / Angular",
     "type": "rss",
     "url": "https://medium.com/feed/tag/angular",
-    "defaultCategories": ["angular"]
+    "defaultCategories": ["angular"],
+    "environment": "tech"
   },
   {
     "id": "devto-java",
@@ -104,7 +118,8 @@
     "type": "devto",
     "url": "https://dev.to/api/articles",
     "params": { "tag": "java", "per_page": "20" },
-    "defaultCategories": ["java"]
+    "defaultCategories": ["java"],
+    "environment": "tech"
   },
   {
     "id": "devto-spring",
@@ -112,7 +127,8 @@
     "type": "devto",
     "url": "https://dev.to/api/articles",
     "params": { "tag": "spring", "per_page": "20" },
-    "defaultCategories": ["spring-boot"]
+    "defaultCategories": ["spring-boot"],
+    "environment": "tech"
   },
   {
     "id": "devto-angular",
@@ -120,7 +136,8 @@
     "type": "devto",
     "url": "https://dev.to/api/articles",
     "params": { "tag": "angular", "per_page": "20" },
-    "defaultCategories": ["angular"]
+    "defaultCategories": ["angular"],
+    "environment": "tech"
   },
   {
     "id": "reddit-java",
@@ -128,7 +145,8 @@
     "type": "reddit",
     "url": "https://www.reddit.com/r/java.json",
     "params": { "limit": "25" },
-    "defaultCategories": ["java"]
+    "defaultCategories": ["java"],
+    "environment": "tech"
   },
   {
     "id": "reddit-spring",
@@ -136,7 +154,8 @@
     "type": "reddit",
     "url": "https://www.reddit.com/r/SpringBoot.json",
     "params": { "limit": "25" },
-    "defaultCategories": ["spring-boot"]
+    "defaultCategories": ["spring-boot"],
+    "environment": "tech"
   },
   {
     "id": "reddit-angular",
@@ -144,7 +163,8 @@
     "type": "reddit",
     "url": "https://www.reddit.com/r/Angular2.json",
     "params": { "limit": "25" },
-    "defaultCategories": ["angular"]
+    "defaultCategories": ["angular"],
+    "environment": "tech"
   },
   {
     "id": "youtube-devoxx",
@@ -152,7 +172,8 @@
     "type": "youtube",
     "url": "https://www.googleapis.com/youtube/v3/search",
     "params": { "channelId": "UCsVPQfo5RZErDL41LoWvk0A", "maxResults": "15" },
-    "defaultCategories": ["java", "spring-boot", "system-design"]
+    "defaultCategories": ["java", "spring-boot", "system-design"],
+    "environment": "tech"
   },
   {
     "id": "youtube-angular",
@@ -160,6 +181,88 @@
     "type": "youtube",
     "url": "https://www.googleapis.com/youtube/v3/search",
     "params": { "channelId": "UCbnkjWklCPE2EYuHzOVBUNw", "maxResults": "10" },
-    "defaultCategories": ["angular"]
+    "defaultCategories": ["angular"],
+    "environment": "tech"
+  },
+  {
+    "id": "lemonde-une",
+    "name": "Le Monde — Une",
+    "type": "rss",
+    "url": "https://www.lemonde.fr/rss/une.xml",
+    "defaultCategories": ["actualite"],
+    "environment": "humanites"
+  },
+  {
+    "id": "lemonde-idees",
+    "name": "Le Monde — Idées",
+    "type": "rss",
+    "url": "https://www.lemonde.fr/idees/rss_full.xml",
+    "defaultCategories": ["philosophie", "actualite"],
+    "environment": "humanites"
+  },
+  {
+    "id": "lemonde-societe",
+    "name": "Le Monde — Société",
+    "type": "rss",
+    "url": "https://www.lemonde.fr/societe/rss_full.xml",
+    "defaultCategories": ["sociologie"],
+    "environment": "humanites"
+  },
+  {
+    "id": "lemonde-culture",
+    "name": "Le Monde — Culture",
+    "type": "rss",
+    "url": "https://www.lemonde.fr/culture/rss_full.xml",
+    "defaultCategories": ["culture"],
+    "environment": "humanites"
+  },
+  {
+    "id": "philo-mag",
+    "name": "Philosophie Magazine",
+    "type": "rss",
+    "url": "https://www.philosophie-magazine.com/rss.xml",
+    "defaultCategories": ["philosophie"],
+    "environment": "humanites"
+  },
+  {
+    "id": "the-conversation",
+    "name": "The Conversation FR",
+    "type": "rss",
+    "url": "https://theconversation.com/fr/articles.atom",
+    "defaultCategories": ["philosophie", "sociologie", "actualite"],
+    "environment": "humanites"
+  },
+  {
+    "id": "courrier-international",
+    "name": "Courrier International",
+    "type": "rss",
+    "url": "https://www.courrierinternational.com/rss.xml",
+    "defaultCategories": ["actualite"],
+    "environment": "humanites"
+  },
+  {
+    "id": "sciences-humaines",
+    "name": "Sciences Humaines",
+    "type": "rss",
+    "url": "https://www.scienceshumaines.com/rss.xml",
+    "defaultCategories": ["sociologie", "philosophie"],
+    "environment": "humanites"
+  },
+  {
+    "id": "slate-fr",
+    "name": "Slate.fr",
+    "type": "rss",
+    "url": "https://www.slate.fr/rss.xml",
+    "defaultCategories": ["actualite", "culture"],
+    "environment": "humanites"
+  },
+  {
+    "id": "binge-audio",
+    "name": "Binge Audio",
+    "type": "rss",
+    "url": "https://www.binge.audio/feed/",
+    "params": { "contentType": "podcast" },
+    "defaultCategories": ["philosophie", "sociologie"],
+    "environment": "humanites"
   }
 ]

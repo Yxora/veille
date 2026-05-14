@@ -16,6 +16,7 @@ export interface Source {
   type: 'rss' | 'devto' | 'reddit' | 'youtube';
   params?: Record<string, string>;
   defaultCategories: string[];
+  environment?: 'tech' | 'humanites';
 }
 
 export interface Category {

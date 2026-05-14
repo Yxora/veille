@@ -19,6 +19,7 @@ interface Source {
   id: string;
   name: string;
   defaultCategories: string[];
+  environment?: 'tech' | 'humanites';
 }
 
 const KEYS = {
@@ -27,6 +28,7 @@ const KEYS = {
   hiddenSources: 'veille:hiddenSources',
   userCategories: 'veille:userCategories',
   userSources: 'veille:userSources',
+  environment: 'veille:environment',
 };
 
 const allItems: ContentItem[] = JSON.parse(
@@ -39,12 +41,30 @@ const baseCategories: Category[] = JSON.parse(
   document.getElementById('veille-categories')!.textContent ?? '[]'
 );
 
+function getActiveEnvironment(): 'tech' | 'humanites' {
+  return (localStorage.getItem(KEYS.environment) as 'tech' | 'humanites') ?? 'tech';
+}
+
+function getEnvironmentSources(env: 'tech' | 'humanites'): Source[] {
+  const userSources: Source[] = JSON.parse(localStorage.getItem(KEYS.userSources) ?? '[]');
+  return [...baseSources, ...userSources].filter((s) => (s.environment ?? 'tech') === env);
+}
+
+function getEnvironmentCategoryIds(env: 'tech' | 'humanites'): Set<string> {
+  const ids = new Set<string>();
+  for (const s of getEnvironmentSources(env)) {
+    for (const catId of s.defaultCategories) ids.add(catId);
+  }
+  return ids;
+}
+
 function loadState() {
   return {
     activeTheme: localStorage.getItem(KEYS.theme) ?? '',
     activeType: localStorage.getItem(KEYS.contentType) ?? 'all',
     hiddenSources: JSON.parse(localStorage.getItem(KEYS.hiddenSources) ?? '[]') as string[],
     userCategories: JSON.parse(localStorage.getItem(KEYS.userCategories) ?? '[]') as Category[],
+    activeEnvironment: getActiveEnvironment(),
   };
 }
 
@@ -114,10 +134,13 @@ function renderSection(type: string, items: ContentItem[]): string {
 }
 
 function applyFilters() {
-  const { activeTheme, activeType, hiddenSources, userCategories } = loadState();
+  const { activeTheme, activeType, hiddenSources, userCategories, activeEnvironment } = loadState();
   const allCategories = [...baseCategories, ...userCategories];
 
+  const envSourceIds = new Set(getEnvironmentSources(activeEnvironment).map((s) => s.id));
+
   const preFiltered = allItems
+    .filter((item) => envSourceIds.has(item.sourceId))
     .filter((item) => !hiddenSources.includes(item.sourceId))
     .filter((item) => {
       if (!activeTheme) return true;
@@ -169,21 +192,82 @@ function applyFilters() {
 // --- Theme selector ---
 const themeSelect = document.getElementById('theme-select') as HTMLSelectElement | null;
 
-function restoreUserCategories() {
-  const userCats: Category[] = JSON.parse(localStorage.getItem(KEYS.userCategories) ?? '[]');
-  userCats.forEach((cat) => {
-    if (!document.querySelector(`#theme-select option[value="${cat.id}"]`)) {
-      const opt = document.createElement('option');
-      opt.value = cat.id;
-      opt.textContent = cat.name;
-      themeSelect?.appendChild(opt);
-    }
+// --- Environment switcher ---
+function updateEnvironmentUI(env: 'tech' | 'humanites') {
+  // Update button styles
+  document.querySelectorAll<HTMLElement>('.env-btn').forEach((btn) => {
+    const active = btn.dataset.env === env;
+    btn.setAttribute('aria-pressed', String(active));
+    btn.classList.toggle('bg-indigo-500', active);
+    btn.classList.toggle('text-white', active);
+    btn.classList.toggle('bg-zinc-800', !active);
+    btn.classList.toggle('text-zinc-400', !active);
   });
+
+  const envLabel = document.getElementById('env-label');
+  if (envLabel) {
+    envLabel.textContent = env === 'tech' ? 'tech dashboard' : 'humanités dashboard';
+  }
+
+  // Repopulate SourceFilter
+  const panel = document.getElementById('source-filter-panel');
+  if (panel) {
+    const masterLabel = panel.querySelector('label:first-child')?.cloneNode(true) as HTMLElement | null;
+    panel.innerHTML = '';
+    if (masterLabel) {
+      const masterCb = masterLabel.querySelector<HTMLInputElement>('#toggle-all-sources');
+      if (masterCb) masterCb.checked = true;
+      panel.appendChild(masterLabel);
+    }
+
+    const hidden: string[] = JSON.parse(localStorage.getItem(KEYS.hiddenSources) ?? '[]');
+    getEnvironmentSources(env).forEach((s) => {
+      const label = document.createElement('label');
+      label.className = 'flex items-center gap-2 text-sm py-1 cursor-pointer';
+      const checked = !hidden.includes(s.id);
+      label.innerHTML = `<input type="checkbox" class="source-toggle accent-indigo-400" data-source-id="${s.id}" ${checked ? 'checked' : ''} /> <span>${s.name}</span>`;
+      panel.appendChild(label);
+    });
+  }
+
+  // Repopulate ThemeSelector — only categories relevant to this env
+  if (themeSelect) {
+    const currentTheme = localStorage.getItem(KEYS.theme) ?? '';
+    const envCatIds = getEnvironmentCategoryIds(env);
+    const userCats: Category[] = JSON.parse(localStorage.getItem(KEYS.userCategories) ?? '[]');
+    const allCats = [...baseCategories, ...userCats];
+
+    themeSelect.innerHTML = '<option value="">— Tout voir —</option>';
+    allCats
+      .filter((cat) => envCatIds.has(cat.id))
+      .forEach((cat) => {
+        const opt = document.createElement('option');
+        opt.value = cat.id;
+        opt.textContent = cat.name;
+        themeSelect.appendChild(opt);
+      });
+
+    // Clear active theme if it doesn't belong to the new env
+    if (currentTheme && !envCatIds.has(currentTheme)) {
+      localStorage.setItem(KEYS.theme, '');
+      themeSelect.value = '';
+    } else {
+      themeSelect.value = currentTheme;
+    }
+  }
+
+  applyFilters();
 }
 
+document.querySelectorAll<HTMLElement>('.env-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const env = (btn.dataset.env ?? 'tech') as 'tech' | 'humanites';
+    localStorage.setItem(KEYS.environment, env);
+    updateEnvironmentUI(env);
+  });
+});
+
 if (themeSelect) {
-  restoreUserCategories();
-  themeSelect.value = localStorage.getItem(KEYS.theme) ?? '';
   themeSelect.addEventListener('change', () => {
     localStorage.setItem(KEYS.theme, themeSelect.value);
     applyFilters();
@@ -191,15 +275,6 @@ if (themeSelect) {
 }
 
 // --- Source checkboxes ---
-function restoreHiddenSources() {
-  const hidden: string[] = JSON.parse(localStorage.getItem(KEYS.hiddenSources) ?? '[]');
-  document.querySelectorAll<HTMLInputElement>('.source-toggle').forEach((cb) => {
-    if (hidden.includes(cb.dataset.sourceId ?? '')) cb.checked = false;
-  });
-}
-
-restoreHiddenSources();
-
 document.addEventListener('change', (e) => {
   const target = e.target as HTMLInputElement;
 
@@ -207,8 +282,7 @@ document.addEventListener('change', (e) => {
     document.querySelectorAll<HTMLInputElement>('.source-toggle').forEach((cb) => {
       cb.checked = target.checked;
     });
-    const allIds = [...baseSources, ...JSON.parse(localStorage.getItem(KEYS.userSources) ?? '[]')]
-      .map((s: Source) => s.id);
+    const allIds = getEnvironmentSources(getActiveEnvironment()).map((s) => s.id);
     localStorage.setItem(KEYS.hiddenSources, target.checked ? '[]' : JSON.stringify(allIds));
     applyFilters();
     return;
@@ -282,19 +356,23 @@ document.getElementById('add-source-form')?.addEventListener('submit', (e) => {
   const url = String(data.get('url')).trim();
   const type = String(data.get('type'));
   const defaultCategories = data.getAll('categories') as string[];
+  const environment = (String(data.get('environment')) as 'tech' | 'humanites') || getActiveEnvironment();
 
   const id = `user-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
   const userSources: Source[] = JSON.parse(localStorage.getItem(KEYS.userSources) ?? '[]');
   if (!userSources.find((s) => s.id === id)) {
-    userSources.push({ id, name, defaultCategories });
+    userSources.push({ id, name, defaultCategories, environment });
     localStorage.setItem(KEYS.userSources, JSON.stringify(userSources));
 
-    const panel = document.getElementById('source-filter-panel');
-    if (panel) {
-      const label = document.createElement('label');
-      label.className = 'flex items-center gap-2 text-sm py-1 cursor-pointer';
-      label.innerHTML = `<input type="checkbox" class="source-toggle accent-indigo-400" data-source-id="${id}" checked /> <span>${name}</span>`;
-      panel.appendChild(label);
+    // Only add to panel if it belongs to the current env
+    if (environment === getActiveEnvironment()) {
+      const panel = document.getElementById('source-filter-panel');
+      if (panel) {
+        const label = document.createElement('label');
+        label.className = 'flex items-center gap-2 text-sm py-1 cursor-pointer';
+        label.innerHTML = `<input type="checkbox" class="source-toggle accent-indigo-400" data-source-id="${id}" checked /> <span>${name}</span>`;
+        panel.appendChild(label);
+      }
     }
   }
 
@@ -311,4 +389,4 @@ document.querySelectorAll<HTMLElement>('.content-type-tab').forEach((btn) => {
 });
 
 // --- Initial render ---
-applyFilters();
+updateEnvironmentUI(getActiveEnvironment());
