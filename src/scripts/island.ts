@@ -22,12 +22,12 @@ interface Source {
   name: string;
   url?: string;
   type?: 'rss' | 'devto' | 'reddit' | 'youtube';
-  defaultCategories: string[];
   environment?: 'tech' | 'humanites';
 }
 
 const KEYS = {
-  theme: 'veille:theme',
+  selectedKeywords: 'veille:selectedKeywords',
+  savedFilterActive: 'veille:savedFilterActive',
   contentType: 'veille:contentType',
   hiddenSources: 'veille:hiddenSources',
   userCategories: 'veille:userCategories',
@@ -39,9 +39,22 @@ const KEYS = {
   deletedCategories: 'veille:deletedCategories',
   savedItems: 'veille:savedItems',
   maxAgeMonths: 'veille:maxAgeMonths',
+  categoryOverrides: 'veille:categoryOverrides',
 };
 
-const SAVED_THEME_ID = '__saved__';
+function getCategoryOverrides(): Record<string, { name: string; keywords: string[] }> {
+  return JSON.parse(localStorage.getItem(KEYS.categoryOverrides) ?? '{}');
+}
+
+// { [categoryId]: string[] } — a category present with an empty/full/partial
+// keyword list lets the filter select anywhere from one keyword to a whole category.
+function getSelectedKeywords(): Record<string, string[]> {
+  return JSON.parse(localStorage.getItem(KEYS.selectedKeywords) ?? '{}');
+}
+
+function isSavedFilterActive(): boolean {
+  return localStorage.getItem(KEYS.savedFilterActive) === 'true';
+}
 
 function getSavedItems(): ContentItem[] {
   return JSON.parse(localStorage.getItem(KEYS.savedItems) ?? '[]');
@@ -182,6 +195,13 @@ async function removeFromGist(payload: { sourceId?: string; categoryId?: string 
   }));
 }
 
+async function updateCategoryInGist(id: string, name: string, keywords: string[]) {
+  await updateGistContent((current) => ({
+    sources: current.sources,
+    categories: current.categories.map((c) => (c.id === id ? { id, name, keywords } : c)),
+  }));
+}
+
 const allItems: ContentItem[] = JSON.parse(
   document.getElementById('veille-data')!.textContent ?? '[]'
 );
@@ -213,6 +233,20 @@ function pruneSyncedUserItems() {
   if (prunedCats.length !== userCats.length) {
     localStorage.setItem(KEYS.userCategories, JSON.stringify(prunedCats));
   }
+
+  // Once an edited category's keywords have made it back through a rebuild,
+  // the local override is redundant — drop it.
+  const overrides = getCategoryOverrides();
+  const baseById = new Map(baseCategories.map((c) => [c.id, c]));
+  let overridesChanged = false;
+  for (const [id, override] of Object.entries(overrides)) {
+    const base = baseById.get(id);
+    if (base && base.name === override.name && base.keywords.join(' ') === override.keywords.join(' ')) {
+      delete overrides[id];
+      overridesChanged = true;
+    }
+  }
+  if (overridesChanged) localStorage.setItem(KEYS.categoryOverrides, JSON.stringify(overrides));
 }
 
 function getAllSources(): Source[] {
@@ -226,7 +260,10 @@ function getAllCategories(): Category[] {
   const baseIds = new Set(baseCategories.map((c) => c.id));
   const userCats: Category[] = JSON.parse(localStorage.getItem(KEYS.userCategories) ?? '[]');
   const deleted = new Set(getIdList(KEYS.deletedCategories));
-  return [...baseCategories, ...userCats.filter((c) => !baseIds.has(c.id))].filter((c) => !deleted.has(c.id));
+  const overrides = getCategoryOverrides();
+  return [...baseCategories, ...userCats.filter((c) => !baseIds.has(c.id))]
+    .filter((c) => !deleted.has(c.id))
+    .map((c) => (overrides[c.id] ? { ...c, ...overrides[c.id] } : c));
 }
 
 function getEnvironmentSources(env: 'tech' | 'humanites'): Source[] {
@@ -249,24 +286,45 @@ function deleteCategory(id: string) {
   const userCats: Category[] = JSON.parse(localStorage.getItem(KEYS.userCategories) ?? '[]');
   localStorage.setItem(KEYS.userCategories, JSON.stringify(userCats.filter((c) => c.id !== id)));
 
-  if (localStorage.getItem(KEYS.theme) === id) localStorage.setItem(KEYS.theme, '');
+  const selected = getSelectedKeywords();
+  if (selected[id]) {
+    delete selected[id];
+    localStorage.setItem(KEYS.selectedKeywords, JSON.stringify(selected));
+  }
 
   addToIdList(KEYS.deletedCategories, id);
   updateEnvironmentUI(getActiveEnvironment());
   removeFromGist({ categoryId: id });
 }
 
-function getEnvironmentCategoryIds(env: 'tech' | 'humanites'): Set<string> {
-  const ids = new Set<string>();
-  for (const s of getEnvironmentSources(env)) {
-    for (const catId of s.defaultCategories) ids.add(catId);
+function editCategoryKeywords(id: string, name: string, keywords: string[]) {
+  const overrides = getCategoryOverrides();
+  overrides[id] = { name, keywords };
+  localStorage.setItem(KEYS.categoryOverrides, JSON.stringify(overrides));
+
+  // If it's a purely local (not-yet-synced) user category, update it in place too.
+  const userCats: Category[] = JSON.parse(localStorage.getItem(KEYS.userCategories) ?? '[]');
+  const idx = userCats.findIndex((c) => c.id === id);
+  if (idx !== -1) {
+    userCats[idx] = { id, name, keywords };
+    localStorage.setItem(KEYS.userCategories, JSON.stringify(userCats));
   }
-  return ids;
+
+  // Drop any selected keywords that no longer exist on this category.
+  const selected = getSelectedKeywords();
+  if (selected[id]) {
+    const stillValid = selected[id].filter((kw) => keywords.includes(kw));
+    if (stillValid.length > 0) selected[id] = stillValid;
+    else delete selected[id];
+    localStorage.setItem(KEYS.selectedKeywords, JSON.stringify(selected));
+  }
+
+  updateEnvironmentUI(getActiveEnvironment());
+  updateCategoryInGist(id, name, keywords);
 }
 
 function loadState() {
   return {
-    activeTheme: localStorage.getItem(KEYS.theme) ?? '',
     activeType: localStorage.getItem(KEYS.contentType) ?? 'all',
     hiddenSources: JSON.parse(localStorage.getItem(KEYS.hiddenSources) ?? '[]') as string[],
     activeEnvironment: getActiveEnvironment(),
@@ -282,14 +340,12 @@ function keywordRegex(keyword: string): RegExp {
   return new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(keyword)}(?![\\p{L}\\p{N}])`, 'iu');
 }
 
-function matchCategories(
+function itemMatchesAnyKeyword(
   item: Pick<ContentItem, 'title' | 'tags' | 'description'>,
-  categories: Category[]
-): string[] {
+  keywords: string[]
+): boolean {
   const haystack = [item.title, ...(item.tags ?? []), item.description ?? ''].join(' ');
-  return categories
-    .filter((cat) => cat.keywords.some((kw) => keywordRegex(kw).test(haystack)))
-    .map((cat) => cat.id);
+  return keywords.some((kw) => keywordRegex(kw).test(haystack));
 }
 
 const ICONS: Record<string, string> = { article: '📄', video: '🎬', podcast: '🎙️' };
@@ -379,8 +435,7 @@ document.getElementById('articles-grid')?.addEventListener('click', (e) => {
 });
 
 function applyFilters() {
-  const { activeTheme, activeType, hiddenSources, activeEnvironment, maxAgeMonths } = loadState();
-  const allCategories = getAllCategories();
+  const { activeType, hiddenSources, activeEnvironment, maxAgeMonths } = loadState();
   const searchQuery = searchInput?.value.trim().toLowerCase() ?? '';
 
   const envSourceIds = new Set(getEnvironmentSources(activeEnvironment).map((s) => s.id));
@@ -388,12 +443,14 @@ function applyFilters() {
   const savedItems = getSavedItems();
   const savedIds = new Set(savedItems.map((i) => i.id));
   const liveIds = new Set(allItems.map((i) => i.id));
+  const savedFilterActive = isSavedFilterActive();
   // Saved items that have rolled off the source feed (and so aren't in
   // allItems anymore) still need to show up when browsing saved content.
-  const baseList =
-    activeTheme === SAVED_THEME_ID
-      ? [...allItems, ...savedItems.filter((i) => !liveIds.has(i.id))]
-      : allItems;
+  const baseList = savedFilterActive
+    ? [...allItems, ...savedItems.filter((i) => !liveIds.has(i.id))]
+    : allItems;
+
+  const selectedFlatKeywords = Object.values(getSelectedKeywords()).flat();
 
   let maxAgeCutoff: string | null = null;
   if (maxAgeMonths > 0) {
@@ -406,10 +463,9 @@ function applyFilters() {
     .filter((item) => envSourceIds.has(item.sourceId))
     .filter((item) => !hiddenSources.includes(item.sourceId))
     .filter((item) => {
-      if (!activeTheme) return true;
-      if (activeTheme === SAVED_THEME_ID) return savedIds.has(item.id);
-      const cats = matchCategories(item, allCategories);
-      return cats.includes(activeTheme) || item.categories.includes(activeTheme);
+      if (savedFilterActive) return savedIds.has(item.id);
+      if (selectedFlatKeywords.length === 0) return true;
+      return itemMatchesAnyKeyword(item, selectedFlatKeywords);
     })
     .filter((item) => {
       // Saved items are kept regardless of age — that's the point of saving them.
@@ -462,8 +518,89 @@ function applyFilters() {
   if (countEl) countEl.textContent = String(visible.length);
 }
 
-// --- Theme selector ---
-const themeSelect = document.getElementById('theme-select') as HTMLSelectElement | null;
+// --- Keywords filter panel ---
+function renderKeywordsPanel() {
+  const panel = document.getElementById('keywords-filter-panel');
+  if (!panel) return;
+
+  const selected = getSelectedKeywords();
+  const savedActive = isSavedFilterActive();
+
+  const savedRow = `<label class="flex items-center gap-2 text-sm pb-2 border-b border-zinc-700 cursor-pointer">
+    <input type="checkbox" id="saved-filter-toggle" class="accent-indigo-400" ${savedActive ? 'checked' : ''} />
+    <span>🔖 Contenu sauvegardé</span>
+  </label>`;
+
+  const categoryBlocks = getAllCategories()
+    .map((cat) => {
+      const selectedForCat = new Set(selected[cat.id] ?? []);
+      const keywordRows = cat.keywords
+        .map(
+          (kw) => `<label class="flex items-center gap-2 text-xs text-zinc-400 cursor-pointer">
+        <input type="checkbox" class="keyword-toggle accent-indigo-400" data-category-id="${cat.id}" data-keyword="${escapeHtml(kw)}" ${selectedForCat.has(kw) ? 'checked' : ''} />
+        <span>${escapeHtml(kw)}</span>
+      </label>`
+        )
+        .join('');
+      return `<div class="flex flex-col gap-1">
+        <label class="flex items-center gap-2 text-sm font-medium cursor-pointer">
+          <input type="checkbox" class="category-toggle accent-indigo-400" data-category-id="${cat.id}" />
+          <span>${escapeHtml(cat.name)}</span>
+        </label>
+        <div class="pl-6 flex flex-col gap-0.5">${keywordRows}</div>
+      </div>`;
+    })
+    .join('');
+
+  panel.innerHTML = savedRow + categoryBlocks;
+
+  // Reflect partial selection on each category's master checkbox.
+  panel.querySelectorAll<HTMLInputElement>('.category-toggle').forEach((cb) => {
+    const catId = cb.dataset.categoryId!;
+    const cat = getAllCategories().find((c) => c.id === catId);
+    if (!cat || cat.keywords.length === 0) return;
+    const checkedCount = cat.keywords.filter((kw) => (selected[catId] ?? []).includes(kw)).length;
+    cb.checked = checkedCount === cat.keywords.length;
+    cb.indeterminate = checkedCount > 0 && checkedCount < cat.keywords.length;
+  });
+}
+
+document.getElementById('keywords-filter-panel')?.addEventListener('change', (e) => {
+  const target = e.target as HTMLInputElement;
+
+  if (target.id === 'saved-filter-toggle') {
+    localStorage.setItem(KEYS.savedFilterActive, String(target.checked));
+    applyFilters();
+    return;
+  }
+
+  const selected = getSelectedKeywords();
+
+  if (target.classList.contains('category-toggle')) {
+    const catId = target.dataset.categoryId!;
+    const cat = getAllCategories().find((c) => c.id === catId);
+    if (!cat) return;
+    if (target.checked) selected[catId] = [...cat.keywords];
+    else delete selected[catId];
+    localStorage.setItem(KEYS.selectedKeywords, JSON.stringify(selected));
+    renderKeywordsPanel();
+    applyFilters();
+    return;
+  }
+
+  if (target.classList.contains('keyword-toggle')) {
+    const catId = target.dataset.categoryId!;
+    const kw = target.dataset.keyword!;
+    const list = new Set(selected[catId] ?? []);
+    if (target.checked) list.add(kw);
+    else list.delete(kw);
+    if (list.size > 0) selected[catId] = [...list];
+    else delete selected[catId];
+    localStorage.setItem(KEYS.selectedKeywords, JSON.stringify(selected));
+    renderKeywordsPanel();
+    applyFilters();
+  }
+});
 
 // --- Environment switcher ---
 function updateEnvironmentUI(env: 'tech' | 'humanites') {
@@ -503,34 +640,10 @@ function updateEnvironmentUI(env: 'tech' | 'humanites') {
     });
   }
 
-  // Repopulate ThemeSelector — only categories relevant to this env
-  if (themeSelect) {
-    const currentTheme = localStorage.getItem(KEYS.theme) ?? '';
-    const envCatIds = getEnvironmentCategoryIds(env);
-    const allCats = getAllCategories();
-
-    themeSelect.innerHTML = '<option value="">— Tout voir —</option>';
-    const savedOpt = document.createElement('option');
-    savedOpt.value = SAVED_THEME_ID;
-    savedOpt.textContent = '🔖 Contenu sauvegardé';
-    themeSelect.appendChild(savedOpt);
-    allCats
-      .filter((cat) => envCatIds.has(cat.id))
-      .forEach((cat) => {
-        const opt = document.createElement('option');
-        opt.value = cat.id;
-        opt.textContent = cat.name;
-        themeSelect.appendChild(opt);
-      });
-
-    // Clear active theme if it doesn't belong to the new env
-    if (currentTheme && currentTheme !== SAVED_THEME_ID && !envCatIds.has(currentTheme)) {
-      localStorage.setItem(KEYS.theme, '');
-      themeSelect.value = '';
-    } else {
-      themeSelect.value = currentTheme;
-    }
-  }
+  // Keyword-based categories apply regardless of environment, so the same
+  // full list is shown no matter which env is active — but re-render anyway
+  // since add/delete/edit can happen at any time.
+  renderKeywordsPanel();
 
   applyFilters();
 }
@@ -542,13 +655,6 @@ document.querySelectorAll<HTMLElement>('.env-btn').forEach((btn) => {
     updateEnvironmentUI(env);
   });
 });
-
-if (themeSelect) {
-  themeSelect.addEventListener('change', () => {
-    localStorage.setItem(KEYS.theme, themeSelect.value);
-    applyFilters();
-  });
-}
 
 // --- Max age selector ---
 const maxAgeSelect = document.getElementById('max-age-select') as HTMLSelectElement | null;
@@ -608,19 +714,7 @@ document.getElementById('add-category-form')?.addEventListener('submit', (e) => 
   if (!userCats.find((c) => c.id === id)) {
     userCats.push({ id, name, keywords });
     localStorage.setItem(KEYS.userCategories, JSON.stringify(userCats));
-    const opt = document.createElement('option');
-    opt.value = id;
-    opt.textContent = name;
-    themeSelect?.appendChild(opt);
-
-    // Also add checkbox to source modal category list
-    const list = document.getElementById('source-categories-list');
-    if (list) {
-      const label = document.createElement('label');
-      label.className = 'flex items-center gap-1.5 text-sm cursor-pointer';
-      label.innerHTML = `<input type="checkbox" name="categories" value="${id}" class="accent-indigo-400" /> ${name}`;
-      list.appendChild(label);
-    }
+    renderKeywordsPanel();
   }
 
   form.reset();
@@ -643,14 +737,13 @@ document.getElementById('add-source-form')?.addEventListener('submit', (e) => {
   const name = String(data.get('name')).trim();
   const url = String(data.get('url')).trim();
   const type = String(data.get('type'));
-  const defaultCategories = data.getAll('categories') as string[];
   const environment = (String(data.get('environment')) as 'tech' | 'humanites') || getActiveEnvironment();
 
   const id = `user-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
   const userSources: Source[] = JSON.parse(localStorage.getItem(KEYS.userSources) ?? '[]');
   let added: Source | null = null;
   if (!userSources.find((s) => s.id === id)) {
-    added = { id, name, url, type: type as Source['type'], defaultCategories, environment };
+    added = { id, name, url, type: type as Source['type'], environment };
     userSources.push(added);
     localStorage.setItem(KEYS.userSources, JSON.stringify(userSources));
 
@@ -704,6 +797,31 @@ function renderRow(id: string, name: string, deleteAttr: string): string {
   </div>`;
 }
 
+function renderCategoryRow(cat: Category): string {
+  const keywordsStr = cat.keywords.join(', ');
+  return `<div class="flex flex-col gap-1 py-2 border-b border-zinc-700/50 last:border-0">
+    <div class="flex items-center justify-between">
+      <span class="text-sm">${escapeHtml(cat.name)}</span>
+      <button type="button" class="text-zinc-500 hover:text-red-400 transition px-1" data-delete-category="${cat.id}" data-name="${escapeHtml(cat.name)}" title="Supprimer">✕</button>
+    </div>
+    <div class="flex items-center gap-2">
+      <input
+        type="text"
+        class="input text-xs py-1"
+        data-keywords-input="${cat.id}"
+        data-name="${escapeHtml(cat.name)}"
+        value="${escapeHtml(keywordsStr)}"
+      />
+      <button
+        type="button"
+        class="text-zinc-500 hover:text-indigo-400 transition px-1 shrink-0"
+        data-save-keywords="${cat.id}"
+        title="Enregistrer les mots-clés"
+      >💾</button>
+    </div>
+  </div>`;
+}
+
 function renderManageLists() {
   const sourcesList = document.getElementById('manage-sources-list');
   if (sourcesList) {
@@ -717,7 +835,7 @@ function renderManageLists() {
   if (categoriesList) {
     const categories = getAllCategories();
     categoriesList.innerHTML = categories.length
-      ? categories.map((c) => renderRow(c.id, c.name, 'data-delete-category')).join('')
+      ? categories.map(renderCategoryRow).join('')
       : '<p class="text-xs text-zinc-500">Aucun mot clé.</p>';
   }
 }
@@ -739,11 +857,24 @@ document.getElementById('manage-sources-list')?.addEventListener('click', (e) =>
   }
 });
 document.getElementById('manage-categories-list')?.addEventListener('click', (e) => {
-  const target = (e.target as HTMLElement).closest<HTMLElement>('[data-delete-category]');
-  if (!target) return;
-  const id = target.dataset.deleteCategory!;
-  if (confirm(`Supprimer le mot clé « ${target.dataset.name} » ?`)) {
-    deleteCategory(id);
+  const deleteBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-delete-category]');
+  if (deleteBtn) {
+    const id = deleteBtn.dataset.deleteCategory!;
+    if (confirm(`Supprimer le mot clé « ${deleteBtn.dataset.name} » ?`)) {
+      deleteCategory(id);
+      renderManageLists();
+    }
+    return;
+  }
+
+  const saveBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-save-keywords]');
+  if (saveBtn) {
+    const id = saveBtn.dataset.saveKeywords!;
+    const input = document.querySelector<HTMLInputElement>(`[data-keywords-input="${id}"]`);
+    if (!input) return;
+    const keywords = input.value.split(',').map((k) => k.trim()).filter(Boolean);
+    if (keywords.length === 0) return;
+    editCategoryKeywords(id, input.dataset.name ?? id, keywords);
     renderManageLists();
   }
 });

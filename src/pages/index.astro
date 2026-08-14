@@ -60,7 +60,7 @@ const categoriesJson = JSON.stringify(baseCategories);
         placeholder="Rechercher…"
         class="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-400 w-48"
       />
-      <ThemeSelector categories={baseCategories} />
+      <ThemeSelector />
       <MaxAgeSelector />
       <SourceFilter sources={sources} />
       <button id="open-add-category" class="btn-secondary">+ Catégorie</button>
@@ -85,7 +85,7 @@ const categoriesJson = JSON.stringify(baseCategories);
   </main>
 
   <AddCategoryModal />
-  <AddSourceModal categories={baseCategories} />
+  <AddSourceModal />
   <GistSyncModal />
   <ManageModal />
 

@@ -39,7 +39,7 @@ GIST_TOKEN=your_pat            # optional, only needed for a private Gist
 
 | Path | Purpose |
 |------|---------|
-| `src/data/sources.json` | Default source configs (id, name, url, type, params, defaultCategories) |
+| `src/data/sources.json` | Default source configs (id, name, url, type, params, environment) |
 | `src/data/categories.json` | Default categories with keyword arrays for matching |
 | `src/lib/types.ts` | `ContentItem`, `Source`, `Category` interfaces |
 | `src/lib/sources.ts` | `fetchAllSources()` — dispatches to fetchers |
@@ -53,7 +53,7 @@ GIST_TOKEN=your_pat            # optional, only needed for a private Gist
 
 ### Adding a new source
 
-Edit `src/data/sources.json` (empty by default — see "Project" above), or add it through the UI / a synced Gist. Each entry needs `id`, `name`, `url`, `type` (`rss`/`devto`/`reddit`/`youtube`), optional `params`, and `defaultCategories`. The source is automatically included in the next page render.
+Edit `src/data/sources.json` (empty by default — see "Project" above), or add it through the UI / a synced Gist. Each entry needs `id`, `name`, `url`, `type` (`rss`/`devto`/`reddit`/`youtube`), optional `params`, and optional `environment` (`tech`/`humanites`, defaults to `tech`). The source is automatically included in the next page render. Sources don't declare categories — a source like "Le Monde" covers many topics, so per-source category tagging didn't make sense; categorization is purely keyword-based (see Data flow step 4) and applies uniformly regardless of source.
 
 ### Adding a new source type
 
@@ -75,13 +75,19 @@ Flow: adding a source/category → saved to `localStorage` (instant UI) → PATC
 
 Deletion works the same way in reverse, from the **🗑 Gérer** modal (`ManageModal.astro`): removing a source/category calls `deleteSource()`/`deleteCategory()` in `island.ts`, which drops it from `localStorage`, records its id in `veille:deletedSources`/`veille:deletedCategories` (so it's hidden immediately even before the next build), and calls `removeFromGist()` to PATCH it out of the Gist and trigger a rebuild.
 
+The same modal also shows each category's keywords in an editable field (`renderCategoryRow()`), since there's otherwise no way to inspect or change them after creation. Saving calls `editCategoryKeywords()`, which writes an override to `veille:categoryOverrides` (applied on top of the merged category list in `getAllCategories()` so the edit is visible immediately) and PATCHes the category in place in the Gist via `updateCategoryInGist()`. The override is pruned automatically once a later rebuild's `baseCategories` matches it (see `pruneSyncedUserItems()`).
+
 ### Max age filter
 
 `MaxAgeSelector.astro` lets the user cap displayed content by age (1/3/6/12 months, or unlimited), stored in `localStorage` as `veille:maxAgeMonths` and applied client-side in `applyFilters()` against `item.publishedAt`. Saved items (see below) are always exempt from this filter. This is a **display filter only** — it doesn't change what gets fetched at build time. Fetchers pull whatever their source naturally returns (e.g. an RSS feed's last ~20-50 entries), so picking "12 mois" won't retroactively surface older content that was never fetched; it only avoids hiding old items that happen to still be in the feed's window.
 
 ### Saved items
 
-Each card has a 🔖 button (`renderCard()` in `island.ts`) that saves/unsaves an item into `localStorage` under `veille:savedItems` — **as a full `ContentItem` snapshot, not just an id**, since articles aren't persisted anywhere server-side and would otherwise vanish once they roll off the source feed's fetch window on a later rebuild. A synthetic `__saved__` entry is always injected into the Mots clés `<select>` (`updateEnvironmentUI()`); selecting it filters to saved items, unioning in any saved snapshots that are no longer in the live `allItems` list. Clicking 🔖 again on a saved item (from any view, including the saved view itself) removes it — there's no separate delete UI, unsaving *is* deleting.
+Each card has a 🔖 button (`renderCard()` in `island.ts`) that saves/unsaves an item into `localStorage` under `veille:savedItems` — **as a full `ContentItem` snapshot, not just an id**, since articles aren't persisted anywhere server-side and would otherwise vanish once they roll off the source feed's fetch window on a later rebuild. A "🔖 Contenu sauvegardé" checkbox sits above the keyword tree in the Mots clés panel (`veille:savedFilterActive`); checking it filters to saved items, unioning in any saved snapshots that are no longer in the live `allItems` list, and takes priority over any selected keywords. Clicking 🔖 again on a saved item (from any view, including the saved view itself) removes it — there's no separate delete UI, unsaving *is* deleting.
+
+### Keyword filter panel
+
+`ThemeSelector.astro` renders a checkbox-tree dropdown (not a `<select>` — a source can't be pinned to one category, since e.g. "Le Monde" covers many topics, and a single category can be too broad to filter by as a whole). Each category is a collapsible group with a master checkbox (select/clear all its keywords) and one checkbox per individual keyword, so filtering can be as coarse as a whole category or as fine as a single keyword, combined across categories. Selection is stored as `veille:selectedKeywords`, `{ [categoryId]: string[] }`. `island.ts`'s `renderKeywordsPanel()` rebuilds the tree from `getAllCategories()` on every environment/category change; `applyFilters()` flattens the selection into one keyword list and matches items with `itemMatchesAnyKeyword()` — the same word-boundary `keywordRegex()` used at build time, run against title + tags + description (OR logic: an item matching *any* selected keyword is shown).
 
 This is what makes "one client, many people's own sources" possible: everyone forks the same code, but points their fork at their own Gist — no code changes needed per person.
 
