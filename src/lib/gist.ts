@@ -27,7 +27,7 @@ export async function fetchGistData(): Promise<GistPayload> {
     if (!file?.content) return {};
     return JSON.parse(file.content) as GistPayload;
   } catch (err) {
-    console.error('[Veille] fetchGistData error:', err);
+    console.error('[Veilleuse] fetchGistData error:', err);
     return {};
   }
 }

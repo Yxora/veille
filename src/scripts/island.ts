@@ -150,7 +150,7 @@ async function updateGistContent(mutate: (current: GistData) => GistData) {
     });
     if (!patchRes.ok) throw new Error(`PATCH gist → HTTP ${patchRes.status}`);
   } catch (err) {
-    console.error('[Veille] updateGistContent error:', err);
+    console.error('[Veilleuse] updateGistContent error:', err);
     alert("Échec de l'écriture dans le Gist — vérifie le Gist ID et le token dans les réglages (⚙️ Sync GitHub).");
     return;
   }
@@ -158,7 +158,7 @@ async function updateGistContent(mutate: (current: GistData) => GistData) {
   try {
     await triggerRebuild(token);
   } catch (err) {
-    console.error('[Veille] triggerRebuild error:', err);
+    console.error('[Veilleuse] triggerRebuild error:', err);
     alert(
       `Enregistré dans le Gist, mais le rebuild automatique a échoué (${(err as Error).message}). ` +
       'Relance-le manuellement depuis l’onglet Actions du dépôt GitHub, ou attends le prochain cycle planifié.'
@@ -305,6 +305,13 @@ function relativeDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
+function bookmarkIcon(saved: boolean): string {
+  const path = 'M6 3a2 2 0 0 0-2 2v16l8-5 8 5V5a2 2 0 0 0-2-2H6z';
+  return saved
+    ? `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="${path}"/></svg>`
+    : `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="${path}"/></svg>`;
+}
+
 function renderCard(item: ContentItem, savedIds: Set<string>): string {
   const icon = ICONS[item.type] ?? '📄';
   const saved = savedIds.has(item.id);
@@ -326,10 +333,10 @@ function renderCard(item: ContentItem, savedIds: Set<string>): string {
       <span>${relativeDate(item.publishedAt)}</span>
       <button
         type="button"
-        class="save-toggle ml-auto text-sm leading-none transition cursor-pointer ${saved ? 'text-indigo-400' : 'text-zinc-600 hover:text-zinc-300'}"
+        class="save-toggle ml-auto leading-none transition cursor-pointer ${saved ? 'text-indigo-400' : 'text-zinc-600 hover:text-zinc-300'}"
         data-save-id="${item.id}"
         title="${saved ? 'Retirer des favoris' : 'Sauvegarder'}"
-      >🔖</button>
+      >${bookmarkIcon(saved)}</button>
     </div>
   </article>`;
 }

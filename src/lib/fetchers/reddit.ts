@@ -4,7 +4,7 @@ export async function fetchReddit(source: Source): Promise<ContentItem[]> {
   const params = new URLSearchParams({ limit: source.params?.limit ?? '25' });
   const res = await fetch(`${source.url}?${params}`, {
     headers: {
-      'User-Agent': 'Veille/1.0 (personal tech dashboard)',
+      'User-Agent': 'Veilleuse/1.0 (personal tech dashboard)',
       Accept: 'application/json',
     },
     signal: AbortSignal.timeout(8000),

@@ -25,7 +25,7 @@ const sources = [...(sourcesData as Source[]), ...(gistData.sources ?? [])];
 const baseCategories = [...(categoriesData as Category[]), ...(gistData.categories ?? [])];
 
 let allItems = await fetchAllSources(sources).catch((err) => {
-  console.error('[Veille] fetchAllSources error:', err);
+  console.error('[Veilleuse] fetchAllSources error:', err);
   return [];
 });
 
@@ -42,7 +42,7 @@ const categoriesJson = JSON.stringify(baseCategories);
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Veille</title>
+  <title>Veilleuse</title>
   <link rel="icon" type="image/png" href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/veilleuse-icon.png`} />
 </head>
 <body class="bg-zinc-900 text-zinc-100 min-h-screen">

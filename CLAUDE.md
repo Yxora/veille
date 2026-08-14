@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-"Veille" — a personal tech-news dashboard built with Astro, deployed as a static site on GitHub Pages via GitHub Actions. It fetches articles, videos, and podcasts from sources (RSS feeds, Dev.to API, Reddit JSON API, YouTube Data API v3) at build time, annotates them with categories via keyword matching, and renders a filterable dark-mode UI.
+"Veilleuse" — a personal tech-news dashboard built with Astro, deployed as a static site on GitHub Pages via GitHub Actions. It fetches articles, videos, and podcasts from sources (RSS feeds, Dev.to API, Reddit JSON API, YouTube Data API v3) at build time, annotates them with categories via keyword matching, and renders a filterable dark-mode UI.
 
 `src/data/sources.json` and `src/data/categories.json` ship empty (`[]`) — this repo is meant to be forked as a neutral starting point, with each fork's actual sources/categories living in their own Gist (see "User customisations" below) and/or added through the UI.
 

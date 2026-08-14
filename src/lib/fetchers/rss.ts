@@ -91,7 +91,7 @@ function extractCategories(catField: unknown): string[] {
 
 export async function fetchRss(source: Source): Promise<ContentItem[]> {
   const res = await fetch(source.url, {
-    headers: { 'User-Agent': 'Veille/1.0 tech-dashboard' },
+    headers: { 'User-Agent': 'Veilleuse/1.0 tech-dashboard' },
     signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) throw new Error(`RSS ${source.url} → HTTP ${res.status}`);

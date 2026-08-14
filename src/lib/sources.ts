@@ -24,7 +24,7 @@ export async function fetchAllSources(sources: Source[]): Promise<ContentItem[]>
     if (result.status === 'fulfilled') {
       items.push(...result.value);
     } else {
-      console.error(`[Veille] Source "${sources[i].name}" failed:`, result.reason);
+      console.error(`[Veilleuse] Source "${sources[i].name}" failed:`, result.reason);
     }
   }
   return items;
