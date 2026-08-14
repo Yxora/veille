@@ -13,6 +13,7 @@ import SourceFilter from '../components/SourceFilter.astro';
 import AddCategoryModal from '../components/AddCategoryModal.astro';
 import AddSourceModal from '../components/AddSourceModal.astro';
 import GistSyncModal from '../components/GistSyncModal.astro';
+import ManageModal from '../components/ManageModal.astro';
 import ContentTypeTabs from '../components/ContentTypeTabs.astro';
 
 import '../styles/global.css';
@@ -63,6 +64,7 @@ const categoriesJson = JSON.stringify(baseCategories);
       <button id="open-add-category" class="btn-secondary">+ Catégorie</button>
       <button id="open-add-source" class="btn-secondary">+ Source</button>
       <button id="open-gist-sync" class="btn-secondary">⚙️ Sync GitHub</button>
+      <button id="open-manage" class="btn-secondary">🗑 Gérer</button>
       <span class="ml-auto text-xs text-zinc-500">
         <span id="article-count">{allItems.length}</span> articles
       </span>
@@ -83,6 +85,7 @@ const categoriesJson = JSON.stringify(baseCategories);
   <AddCategoryModal />
   <AddSourceModal categories={baseCategories} />
   <GistSyncModal />
+  <ManageModal />
 
   <script src="../scripts/island.ts"></script>
 </body>

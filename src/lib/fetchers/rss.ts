@@ -35,6 +35,25 @@ function slugify(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 40);
 }
 
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
+};
+
+// Some feeds double-encode entities (e.g. "&amp;#233;" in the raw XML), which
+// leaves a literal "&#233;" in the text after the XML parser's single decode
+// pass. Run a second decode to catch those.
+function decodeEntities(text: string): string {
+  return text.replace(/&(#x[0-9a-fA-F]+|#\d+|[a-zA-Z]+);/g, (match, entity: string) => {
+    if (entity[0] === '#') {
+      const code = entity[1] === 'x' || entity[1] === 'X'
+        ? parseInt(entity.slice(2), 16)
+        : parseInt(entity.slice(1), 10);
+      return Number.isNaN(code) ? match : String.fromCodePoint(code);
+    }
+    return NAMED_ENTITIES[entity] ?? match;
+  });
+}
+
 function extractCategories(catField: unknown): string[] {
   if (catField == null) return [];
   const arr = Array.isArray(catField) ? catField : [catField];
@@ -75,7 +94,7 @@ export async function fetchRss(source: Source): Promise<ContentItem[]> {
           : String(rawTitle ?? '(no title)');
       return {
         id: `${source.id}-${slugify(url || title)}`,
-        title: title.trim(),
+        title: decodeEntities(title.trim()),
         url,
         sourceId: source.id,
         sourceName: source.name,
@@ -109,7 +128,7 @@ export async function fetchRss(source: Source): Promise<ContentItem[]> {
           : String(rawTitle ?? '(no title)');
       return {
         id: `${source.id}-${slugify(url || title)}`,
-        title: title.trim(),
+        title: decodeEntities(title.trim()),
         url,
         sourceId: source.id,
         sourceName: source.name,

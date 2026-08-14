@@ -73,6 +73,8 @@ Optionally, each fork can also sync those additions to a personal GitHub Gist so
 
 Flow: adding a source/category → saved to `localStorage` (instant UI) → PATCHed into the Gist → a `workflow_dispatch` call immediately re-triggers `.github/workflows/deploy.yml`, so the new source is actually fetched within the next build/deploy (roughly a minute or two), not just at the next scheduled run. `src/pages/index.astro` merges `sources.json`/`categories.json` with the Gist content at build time via `fetchGistData()`.
 
+Deletion works the same way in reverse, from the **🗑 Gérer** modal (`ManageModal.astro`): removing a source/category calls `deleteSource()`/`deleteCategory()` in `island.ts`, which drops it from `localStorage`, records its id in `veille:deletedSources`/`veille:deletedCategories` (so it's hidden immediately even before the next build), and calls `removeFromGist()` to PATCH it out of the Gist and trigger a rebuild.
+
 This is what makes "one client, many people's own sources" possible: everyone forks the same code, but points their fork at their own Gist — no code changes needed per person.
 
 ## Deployment
