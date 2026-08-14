@@ -38,6 +38,7 @@ const KEYS = {
   deletedSources: 'veille:deletedSources',
   deletedCategories: 'veille:deletedCategories',
   savedItems: 'veille:savedItems',
+  maxAgeMonths: 'veille:maxAgeMonths',
 };
 
 const SAVED_THEME_ID = '__saved__';
@@ -269,6 +270,7 @@ function loadState() {
     activeType: localStorage.getItem(KEYS.contentType) ?? 'all',
     hiddenSources: JSON.parse(localStorage.getItem(KEYS.hiddenSources) ?? '[]') as string[],
     activeEnvironment: getActiveEnvironment(),
+    maxAgeMonths: Number(localStorage.getItem(KEYS.maxAgeMonths) ?? '0'),
   };
 }
 
@@ -370,7 +372,7 @@ document.getElementById('articles-grid')?.addEventListener('click', (e) => {
 });
 
 function applyFilters() {
-  const { activeTheme, activeType, hiddenSources, activeEnvironment } = loadState();
+  const { activeTheme, activeType, hiddenSources, activeEnvironment, maxAgeMonths } = loadState();
   const allCategories = getAllCategories();
   const searchQuery = searchInput?.value.trim().toLowerCase() ?? '';
 
@@ -386,6 +388,13 @@ function applyFilters() {
       ? [...allItems, ...savedItems.filter((i) => !liveIds.has(i.id))]
       : allItems;
 
+  let maxAgeCutoff: string | null = null;
+  if (maxAgeMonths > 0) {
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - maxAgeMonths);
+    maxAgeCutoff = cutoff.toISOString();
+  }
+
   const preFiltered = baseList
     .filter((item) => envSourceIds.has(item.sourceId))
     .filter((item) => !hiddenSources.includes(item.sourceId))
@@ -394,6 +403,11 @@ function applyFilters() {
       if (activeTheme === SAVED_THEME_ID) return savedIds.has(item.id);
       const cats = matchCategories(item, allCategories);
       return cats.includes(activeTheme) || item.categories.includes(activeTheme);
+    })
+    .filter((item) => {
+      // Saved items are kept regardless of age — that's the point of saving them.
+      if (!maxAgeCutoff || savedIds.has(item.id)) return true;
+      return item.publishedAt >= maxAgeCutoff;
     })
     .filter((item) => {
       if (!searchQuery) return true;
@@ -525,6 +539,16 @@ document.querySelectorAll<HTMLElement>('.env-btn').forEach((btn) => {
 if (themeSelect) {
   themeSelect.addEventListener('change', () => {
     localStorage.setItem(KEYS.theme, themeSelect.value);
+    applyFilters();
+  });
+}
+
+// --- Max age selector ---
+const maxAgeSelect = document.getElementById('max-age-select') as HTMLSelectElement | null;
+if (maxAgeSelect) {
+  maxAgeSelect.value = localStorage.getItem(KEYS.maxAgeMonths) ?? '0';
+  maxAgeSelect.addEventListener('change', () => {
+    localStorage.setItem(KEYS.maxAgeMonths, maxAgeSelect.value);
     applyFilters();
   });
 }

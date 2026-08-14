@@ -9,6 +9,7 @@ import { fetchGistData } from '../lib/gist';
 import Header from '../components/Header.astro';
 import ArticleCard from '../components/ArticleCard.astro';
 import ThemeSelector from '../components/ThemeSelector.astro';
+import MaxAgeSelector from '../components/MaxAgeSelector.astro';
 import SourceFilter from '../components/SourceFilter.astro';
 import AddCategoryModal from '../components/AddCategoryModal.astro';
 import AddSourceModal from '../components/AddSourceModal.astro';
@@ -60,6 +61,7 @@ const categoriesJson = JSON.stringify(baseCategories);
         class="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-400 w-48"
       />
       <ThemeSelector categories={baseCategories} />
+      <MaxAgeSelector />
       <SourceFilter sources={sources} />
       <button id="open-add-category" class="btn-secondary">+ Catégorie</button>
       <button id="open-add-source" class="btn-secondary">+ Source</button>
