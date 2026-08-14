@@ -12,7 +12,6 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/vercel": "^10.0.6",
     "@tailwindcss/vite": "^4.3.0",
     "astro": "^6.3.1",
     "fast-xml-parser": "^5.8.0",

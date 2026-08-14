@@ -1,0 +1,39 @@
+---
+---
+<dialog
+  id="gist-sync-modal"
+  class="bg-zinc-800 text-zinc-100 rounded-2xl p-6 w-full max-w-md shadow-2xl backdrop:bg-black/60 open:flex open:flex-col gap-4"
+>
+  <h2 class="text-lg font-bold">Synchronisation GitHub</h2>
+  <p class="text-sm text-zinc-400">
+    Les sources et catégories ajoutées ici seront enregistrées dans ton Gist et déclencheront un
+    rebuild du site (via GitHub Actions) pour les récupérer réellement.
+  </p>
+  <form id="gist-sync-form" class="flex flex-col gap-4">
+    <div>
+      <label class="block text-sm text-zinc-400 mb-1">ID du Gist</label>
+      <input
+        name="gistId"
+        placeholder="ex: a1b2c3d4e5f6…"
+        class="input"
+      />
+    </div>
+    <div>
+      <label class="block text-sm text-zinc-400 mb-1">Token GitHub (personal access token)</label>
+      <input
+        name="token"
+        type="password"
+        placeholder="ghp_…"
+        class="input"
+      />
+      <p class="text-xs text-zinc-500 mt-1">
+        Scopes requis : <code>gist</code> (écrire dans le Gist) et <code>repo</code> (déclencher le
+        rebuild). Stocké uniquement dans ton navigateur (localStorage).
+      </p>
+    </div>
+    <div class="flex justify-end gap-3 pt-2">
+      <button type="button" id="cancel-gist-sync" class="btn-ghost">Annuler</button>
+      <button type="submit" class="btn-primary">Enregistrer</button>
+    </div>
+  </form>
+</dialog>

@@ -18,6 +18,8 @@ interface Category {
 interface Source {
   id: string;
   name: string;
+  url?: string;
+  type?: 'rss' | 'devto' | 'reddit' | 'youtube';
   defaultCategories: string[];
   environment?: 'tech' | 'humanites';
 }
@@ -29,7 +31,89 @@ const KEYS = {
   userCategories: 'veille:userCategories',
   userSources: 'veille:userSources',
   environment: 'veille:environment',
+  gistId: 'veille:gistId',
+  githubToken: 'veille:githubToken',
 };
+
+const GIST_FILENAME = 'veille-data.json';
+const DEPLOY_WORKFLOW = 'deploy.yml';
+
+function getGistConfig() {
+  return {
+    gistId: localStorage.getItem(KEYS.gistId) ?? '',
+    token: localStorage.getItem(KEYS.githubToken) ?? '',
+  };
+}
+
+function getRepoInfo(): { owner: string; repo: string } | null {
+  const host = location.hostname;
+  if (!host.endsWith('.github.io')) return null;
+  const owner = host.split('.')[0];
+  if (!owner) return null;
+  const firstSegment = location.pathname.split('/').filter(Boolean)[0];
+  const repo = firstSegment || `${owner}.github.io`;
+  return { owner, repo };
+}
+
+async function triggerRebuild(token: string) {
+  const repoInfo = getRepoInfo();
+  if (!repoInfo) return;
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/actions/workflows/${DEPLOY_WORKFLOW}/dispatches`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ref: 'main' }),
+      }
+    );
+    if (!res.ok) throw new Error(`workflow_dispatch → HTTP ${res.status}`);
+  } catch (err) {
+    console.error('[Veille] triggerRebuild error:', err);
+  }
+}
+
+async function syncToGist(payload: { sources?: Source[]; categories?: Category[] }) {
+  const { gistId, token } = getGistConfig();
+  if (!gistId || !token) return;
+
+  try {
+    const getRes = await fetch(`https://api.github.com/gists/${gistId}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+    });
+    if (!getRes.ok) throw new Error(`GET gist → HTTP ${getRes.status}`);
+    const gist = await getRes.json();
+    const filename = Object.keys(gist.files ?? {})[0] ?? GIST_FILENAME;
+    const current = gist.files?.[filename]?.content ? JSON.parse(gist.files[filename].content) : {};
+
+    const next = {
+      sources: payload.sources ? [...(current.sources ?? []), ...payload.sources] : (current.sources ?? []),
+      categories: payload.categories
+        ? [...(current.categories ?? []), ...payload.categories]
+        : (current.categories ?? []),
+    };
+
+    const patchRes = await fetch(`https://api.github.com/gists/${gistId}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ files: { [filename]: { content: JSON.stringify(next, null, 2) } } }),
+    });
+    if (!patchRes.ok) throw new Error(`PATCH gist → HTTP ${patchRes.status}`);
+
+    await triggerRebuild(token);
+  } catch (err) {
+    console.error('[Veille] syncToGist error:', err);
+    alert("Échec de la synchronisation GitHub — vérifie le Gist ID et le token dans les réglages (⚙️ Sync GitHub).");
+  }
+}
 
 const allItems: ContentItem[] = JSON.parse(
   document.getElementById('veille-data')!.textContent ?? '[]'
@@ -348,6 +432,8 @@ document.getElementById('add-category-form')?.addEventListener('submit', (e) => 
 
   form.reset();
   (document.getElementById('add-category-modal') as HTMLDialogElement)?.close();
+
+  syncToGist({ categories: [{ id, name, keywords }] });
 });
 
 // --- Add Source modal ---
@@ -369,8 +455,10 @@ document.getElementById('add-source-form')?.addEventListener('submit', (e) => {
 
   const id = `user-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
   const userSources: Source[] = JSON.parse(localStorage.getItem(KEYS.userSources) ?? '[]');
+  let added: Source | null = null;
   if (!userSources.find((s) => s.id === id)) {
-    userSources.push({ id, name, defaultCategories, environment });
+    added = { id, name, url, type: type as Source['type'], defaultCategories, environment };
+    userSources.push(added);
     localStorage.setItem(KEYS.userSources, JSON.stringify(userSources));
 
     // Only add to panel if it belongs to the current env
@@ -387,6 +475,32 @@ document.getElementById('add-source-form')?.addEventListener('submit', (e) => {
 
   form.reset();
   (document.getElementById('add-source-modal') as HTMLDialogElement)?.close();
+
+  if (added) syncToGist({ sources: [added] });
+});
+
+// --- GitHub Gist sync settings ---
+document.getElementById('open-gist-sync')?.addEventListener('click', () => {
+  const form = document.getElementById('gist-sync-form') as HTMLFormElement | null;
+  if (form) {
+    (form.elements.namedItem('gistId') as HTMLInputElement).value = localStorage.getItem(KEYS.gistId) ?? '';
+    (form.elements.namedItem('token') as HTMLInputElement).value = localStorage.getItem(KEYS.githubToken) ?? '';
+  }
+  (document.getElementById('gist-sync-modal') as HTMLDialogElement)?.showModal();
+});
+document.getElementById('cancel-gist-sync')?.addEventListener('click', () => {
+  (document.getElementById('gist-sync-modal') as HTMLDialogElement)?.close();
+});
+document.getElementById('gist-sync-form')?.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const form = e.target as HTMLFormElement;
+  const gistId = (form.elements.namedItem('gistId') as HTMLInputElement).value.trim();
+  const token = (form.elements.namedItem('token') as HTMLInputElement).value.trim();
+
+  localStorage.setItem(KEYS.gistId, gistId);
+  localStorage.setItem(KEYS.githubToken, token);
+
+  (document.getElementById('gist-sync-modal') as HTMLDialogElement)?.close();
 });
 
 // --- Content type tabs ---

@@ -4,6 +4,7 @@ import sourcesData from '../data/sources.json';
 import categoriesData from '../data/categories.json';
 import { fetchAllSources } from '../lib/sources';
 import { annotateItems } from '../lib/categories';
+import { fetchGistData } from '../lib/gist';
 
 import Header from '../components/Header.astro';
 import ArticleCard from '../components/ArticleCard.astro';
@@ -11,14 +12,15 @@ import ThemeSelector from '../components/ThemeSelector.astro';
 import SourceFilter from '../components/SourceFilter.astro';
 import AddCategoryModal from '../components/AddCategoryModal.astro';
 import AddSourceModal from '../components/AddSourceModal.astro';
+import GistSyncModal from '../components/GistSyncModal.astro';
 import ContentTypeTabs from '../components/ContentTypeTabs.astro';
 
 import '../styles/global.css';
 
-Astro.response.headers.set('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
+const gistData = await fetchGistData();
 
-const sources = sourcesData as Source[];
-const baseCategories = categoriesData as Category[];
+const sources = [...(sourcesData as Source[]), ...(gistData.sources ?? [])];
+const baseCategories = [...(categoriesData as Category[]), ...(gistData.categories ?? [])];
 
 let allItems = await fetchAllSources(sources).catch((err) => {
   console.error('[Veille] fetchAllSources error:', err);
@@ -39,7 +41,7 @@ const categoriesJson = JSON.stringify(baseCategories);
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Veille</title>
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/favicon.svg`} />
 </head>
 <body class="bg-zinc-900 text-zinc-100 min-h-screen">
   <Header />
@@ -60,6 +62,7 @@ const categoriesJson = JSON.stringify(baseCategories);
       <SourceFilter sources={sources} />
       <button id="open-add-category" class="btn-secondary">+ Catégorie</button>
       <button id="open-add-source" class="btn-secondary">+ Source</button>
+      <button id="open-gist-sync" class="btn-secondary">⚙️ Sync GitHub</button>
       <span class="ml-auto text-xs text-zinc-500">
         <span id="article-count">{allItems.length}</span> articles
       </span>
@@ -79,6 +82,7 @@ const categoriesJson = JSON.stringify(baseCategories);
 
   <AddCategoryModal />
   <AddSourceModal categories={baseCategories} />
+  <GistSyncModal />
 
   <script src="../scripts/island.ts"></script>
 </body>

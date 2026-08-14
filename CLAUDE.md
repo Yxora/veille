@@ -4,32 +4,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-"Veille" — a personal tech-news dashboard built with Astro SSR, deployed on Vercel via GitHub. It fetches articles, videos, and podcasts from ~20 sources (RSS feeds, Dev.to API, Reddit JSON API, YouTube Data API v3), annotates them with categories via keyword matching, and renders a filterable dark-mode UI.
+"Veille" — a personal tech-news dashboard built with Astro, deployed as a static site on GitHub Pages via GitHub Actions. It fetches articles, videos, and podcasts from ~20 sources (RSS feeds, Dev.to API, Reddit JSON API, YouTube Data API v3) at build time, annotates them with categories via keyword matching, and renders a filterable dark-mode UI.
 
 ## Commands
 
 ```bash
 npm run dev       # start local dev server at http://localhost:4321
-npm run build     # build for production (outputs to dist/ and .vercel/)
+npm run build     # build for production (static output to dist/)
 npm run preview   # preview the production build locally
 ```
 
-To enable YouTube sources locally, create `.env.local` (not committed):
+To enable YouTube sources, and/or Gist-backed sources, locally, create `.env.local` (not committed):
 ```
 YOUTUBE_API_KEY=your_key_here
+GIST_ID=your_gist_id           # optional
+GIST_TOKEN=your_pat            # optional, only needed for a private Gist
 ```
 
 ## Architecture
 
 ### Data flow
 
-1. `src/pages/index.astro` (SSR) calls `fetchAllSources(sources)` server-side on every request
+1. `src/pages/index.astro` calls `fetchAllSources(sources)` once, at **build time** (static output — there is no per-request server)
 2. `src/lib/sources.ts` dispatches each source to the right fetcher via a `FETCHERS` record keyed by `Source['type']`
-3. Fetchers return `ContentItem[]`; failures are caught by `Promise.allSettled` and logged — one broken source never kills the page
+3. Fetchers return `ContentItem[]`; failures are caught by `Promise.allSettled` and logged — one broken source never kills the build
 4. `annotateItems()` from `src/lib/categories.ts` does case-insensitive keyword matching against `src/data/categories.json` to assign category IDs to each item
 5. All data is serialized into three `<script type="application/json">` islands in the HTML
 6. `src/scripts/island.ts` (vanilla TS, no framework) reads those islands and re-renders the grid based on localStorage state (active theme, hidden sources, user-added categories/sources)
-7. Response includes `Cache-Control: s-maxage=300, stale-while-revalidate=600` so Vercel CDN caches the page for 5 minutes
+7. Because content is now baked in at build time, freshness depends on how often the site rebuilds — see Deployment below
 
 ### Key files
 
@@ -44,7 +46,7 @@ YOUTUBE_API_KEY=your_key_here
 | `src/lib/fetchers/reddit.ts` | Reddit JSON API (requires `User-Agent` header) |
 | `src/lib/fetchers/youtube.ts` | YouTube Data API v3 `search.list`; reads `import.meta.env.YOUTUBE_API_KEY` |
 | `src/lib/categories.ts` | Keyword-based category matching |
-| `src/pages/index.astro` | Main SSR page |
+| `src/pages/index.astro` | Main page, rendered statically at build time |
 | `src/scripts/island.ts` | Client-side filtering, localStorage state, modal handlers |
 
 ### Adding a new source
@@ -57,15 +59,28 @@ Edit `src/data/sources.json`. Each entry needs `id`, `name`, `url`, `type` (`rss
 2. Create `src/lib/fetchers/<type>.ts` exporting an async function `(source: Source) => Promise<ContentItem[]>`
 3. Register it in the `FETCHERS` record in `src/lib/sources.ts`
 
-### User customisations (runtime)
+### User customisations (runtime + Gist sync)
 
-Categories and sources added via the UI are stored in `localStorage` under `veille:userCategories` and `veille:userSources`. They are merged with the base config client-side — user-added sources are not server-fetched (they require a new entry in `sources.json` and a redeploy to be fetched server-side).
+Categories and sources added via the UI are stored in `localStorage` under `veille:userCategories` and `veille:userSources`, and merged with the base config client-side immediately (so the UI reflects them right away).
+
+Optionally, each fork can also sync those additions to a personal GitHub Gist so they get **actually fetched** (not just displayed as an empty entry) and persist across devices/rebuilds:
+
+1. Create a Gist (public is fine) containing one file named `veille-data.json` with `{"sources":[],"categories":[]}`.
+2. In the deployed site, open **⚙️ Sync GitHub** and paste the Gist ID and a GitHub personal access token (classic; scopes `gist` + `repo`). This is stored only in that browser's `localStorage` (`veille:gistId`, `veille:githubToken`) — never committed.
+3. Set the same Gist ID as the `GIST_ID` repository secret (and `GIST_TOKEN` too if the Gist is private) so the **build** can also read it — see `src/lib/gist.ts`.
+
+Flow: adding a source/category → saved to `localStorage` (instant UI) → PATCHed into the Gist → a `workflow_dispatch` call immediately re-triggers `.github/workflows/deploy.yml`, so the new source is actually fetched within the next build/deploy (roughly a minute or two), not just at the next scheduled run. `src/pages/index.astro` merges `sources.json`/`categories.json` with the Gist content at build time via `fetchGistData()`.
+
+This is what makes "one client, many people's own sources" possible: everyone forks the same code, but points their fork at their own Gist — no code changes needed per person.
 
 ## Deployment
 
-- Vercel auto-deploys on push to `main`
-- Set `YOUTUBE_API_KEY` in Vercel → Project → Settings → Environment Variables
-- `@astrojs/vercel` adapter is configured in `astro.config.mjs`
+- Static site (`output: 'static'` in `astro.config.mjs`), built and deployed via `.github/workflows/deploy.yml` to GitHub Pages
+- The workflow runs on push to `main`, on push-triggered `workflow_dispatch` calls from the browser (see above), on a schedule (every 3 hours, as a fallback to refresh already-tracked feeds), and can be triggered manually
+- Set `YOUTUBE_API_KEY` as a repository secret: GitHub repo → Settings → Secrets and variables → Actions
+- Optionally set `GIST_ID` (and `GIST_TOKEN` for a private Gist) the same way, for the Gist-backed sources described above
+- In repo Settings → Pages, set the source to "GitHub Actions"
+- `site` and `base` in `astro.config.mjs` are set for the `marionLa/veille` project page (`https://marionla.github.io/veille`) — update both if the repo is renamed or moved to a user/org page or forked under a different name
 
 ## Sources status
 

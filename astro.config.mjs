@@ -3,12 +3,11 @@ import { defineConfig } from 'astro/config';
 
 import tailwindcss from '@tailwindcss/vite';
 
-import vercel from '@astrojs/vercel';
-
 // https://astro.build/config
 export default defineConfig({
-  output: 'server',
-  adapter: vercel(),
+  output: 'static',
+  site: 'https://marionla.github.io',
+  base: '/veille',
   vite: {
     plugins: [tailwindcss()]
   },
