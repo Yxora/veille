@@ -11,10 +11,16 @@ interface ContentItem {
   description?: string;
 }
 
+interface Environment {
+  id: string;
+  name: string;
+}
+
 interface Category {
   id: string;
   name: string;
   keywords: string[];
+  environment?: string;
 }
 
 interface Source {
@@ -22,7 +28,7 @@ interface Source {
   name: string;
   url?: string;
   type?: 'rss' | 'devto' | 'reddit' | 'youtube';
-  environment?: 'tech' | 'humanites';
+  environment?: string;
 }
 
 const KEYS = {
@@ -32,11 +38,13 @@ const KEYS = {
   hiddenSources: 'veille:hiddenSources',
   userCategories: 'veille:userCategories',
   userSources: 'veille:userSources',
+  userEnvironments: 'veille:userEnvironments',
   environment: 'veille:environment',
   gistId: 'veille:gistId',
   githubToken: 'veille:githubToken',
   deletedSources: 'veille:deletedSources',
   deletedCategories: 'veille:deletedCategories',
+  deletedEnvironments: 'veille:deletedEnvironments',
   savedItems: 'veille:savedItems',
   maxAgeMonths: 'veille:maxAgeMonths',
   categoryOverrides: 'veille:categoryOverrides',
@@ -135,7 +143,7 @@ async function triggerRebuild(token: string): Promise<void> {
   }
 }
 
-type GistData = { sources: Source[]; categories: Category[] };
+type GistData = { sources: Source[]; categories: Category[]; environments: Environment[] };
 
 async function updateGistContent(mutate: (current: GistData) => GistData) {
   const { gistId, token } = getGistConfig();
@@ -150,7 +158,11 @@ async function updateGistContent(mutate: (current: GistData) => GistData) {
     const filename = Object.keys(gist.files ?? {})[0] ?? GIST_FILENAME;
     const current = gist.files?.[filename]?.content ? JSON.parse(gist.files[filename].content) : {};
 
-    const next = mutate({ sources: current.sources ?? [], categories: current.categories ?? [] });
+    const next = mutate({
+      sources: current.sources ?? [],
+      categories: current.categories ?? [],
+      environments: current.environments ?? [],
+    });
 
     const patchRes = await fetch(`https://api.github.com/gists/${gistId}`, {
       method: 'PATCH',
@@ -179,26 +191,31 @@ async function updateGistContent(mutate: (current: GistData) => GistData) {
   }
 }
 
-async function syncToGist(payload: { sources?: Source[]; categories?: Category[] }) {
+async function syncToGist(payload: { sources?: Source[]; categories?: Category[]; environments?: Environment[] }) {
   await updateGistContent((current) => ({
     sources: payload.sources ? [...current.sources, ...payload.sources] : current.sources,
     categories: payload.categories ? [...current.categories, ...payload.categories] : current.categories,
+    environments: payload.environments ? [...current.environments, ...payload.environments] : current.environments,
   }));
 }
 
-async function removeFromGist(payload: { sourceId?: string; categoryId?: string }) {
+async function removeFromGist(payload: { sourceId?: string; categoryId?: string; environmentId?: string }) {
   await updateGistContent((current) => ({
     sources: payload.sourceId ? current.sources.filter((s) => s.id !== payload.sourceId) : current.sources,
     categories: payload.categoryId
       ? current.categories.filter((c) => c.id !== payload.categoryId)
       : current.categories,
+    environments: payload.environmentId
+      ? current.environments.filter((e) => e.id !== payload.environmentId)
+      : current.environments,
   }));
 }
 
 async function updateCategoryInGist(id: string, name: string, keywords: string[]) {
   await updateGistContent((current) => ({
     sources: current.sources,
-    categories: current.categories.map((c) => (c.id === id ? { id, name, keywords } : c)),
+    categories: current.categories.map((c) => (c.id === id ? { ...c, name, keywords } : c)),
+    environments: current.environments,
   }));
 }
 
@@ -211,9 +228,22 @@ const baseSources: Source[] = JSON.parse(
 const baseCategories: Category[] = JSON.parse(
   document.getElementById('veille-categories')!.textContent ?? '[]'
 );
+const baseEnvironments: Environment[] = JSON.parse(
+  document.getElementById('veille-environments')!.textContent ?? '[]'
+);
 
-function getActiveEnvironment(): 'tech' | 'humanites' {
-  return (localStorage.getItem(KEYS.environment) as 'tech' | 'humanites') ?? 'tech';
+function getAllEnvironments(): Environment[] {
+  const baseIds = new Set(baseEnvironments.map((e) => e.id));
+  const userEnvs: Environment[] = JSON.parse(localStorage.getItem(KEYS.userEnvironments) ?? '[]');
+  const deleted = new Set(getIdList(KEYS.deletedEnvironments));
+  return [...baseEnvironments, ...userEnvs.filter((e) => !baseIds.has(e.id))].filter((e) => !deleted.has(e.id));
+}
+
+function getActiveEnvironment(): string {
+  const stored = localStorage.getItem(KEYS.environment) ?? '';
+  const envs = getAllEnvironments();
+  if (envs.some((e) => e.id === stored)) return stored;
+  return envs[0]?.id ?? '';
 }
 
 // Once a locally-added source/category has been synced to the Gist and the
@@ -232,6 +262,13 @@ function pruneSyncedUserItems() {
   const prunedCats = userCats.filter((c) => !baseCategoryIds.has(c.id));
   if (prunedCats.length !== userCats.length) {
     localStorage.setItem(KEYS.userCategories, JSON.stringify(prunedCats));
+  }
+
+  const baseEnvIds = new Set(baseEnvironments.map((e) => e.id));
+  const userEnvs: Environment[] = JSON.parse(localStorage.getItem(KEYS.userEnvironments) ?? '[]');
+  const prunedEnvs = userEnvs.filter((e) => !baseEnvIds.has(e.id));
+  if (prunedEnvs.length !== userEnvs.length) {
+    localStorage.setItem(KEYS.userEnvironments, JSON.stringify(prunedEnvs));
   }
 
   // Once an edited category's keywords have made it back through a rebuild,
@@ -266,8 +303,73 @@ function getAllCategories(): Category[] {
     .map((c) => (overrides[c.id] ? { ...c, ...overrides[c.id] } : c));
 }
 
-function getEnvironmentSources(env: 'tech' | 'humanites'): Source[] {
-  return getAllSources().filter((s) => (s.environment ?? 'tech') === env);
+function getEnvironmentCategories(env: string): Category[] {
+  return getAllCategories().filter((c) => (c.environment ?? env) === env);
+}
+
+function getEnvironmentSources(env: string): Source[] {
+  return getAllSources().filter((s) => (s.environment ?? env) === env);
+}
+
+function addEnvironment(name: string) {
+  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const envs: Environment[] = JSON.parse(localStorage.getItem(KEYS.userEnvironments) ?? '[]');
+  if (getAllEnvironments().some((e) => e.id === id)) return;
+
+  const env: Environment = { id, name };
+  envs.push(env);
+  localStorage.setItem(KEYS.userEnvironments, JSON.stringify(envs));
+
+  localStorage.setItem(KEYS.environment, id);
+  updateEnvironmentUI(id);
+  syncToGist({ environments: [env] });
+}
+
+function deleteEnvironment(id: string) {
+  const sourcesToDelete = getAllSources().filter((s) => s.environment === id);
+  const categoriesToDelete = getAllCategories().filter((c) => c.environment === id);
+  const sourceIds = new Set(sourcesToDelete.map((s) => s.id));
+  const categoryIds = new Set(categoriesToDelete.map((c) => c.id));
+
+  const count = sourcesToDelete.length + categoriesToDelete.length;
+  const label = getAllEnvironments().find((e) => e.id === id)?.name ?? id;
+  const warning = count > 0
+    ? ` Ça supprimera aussi ${sourcesToDelete.length} source(s) et ${categoriesToDelete.length} catégorie(s) qui lui appartiennent.`
+    : '';
+  if (!confirm(`Supprimer l'environnement « ${label} » ?${warning}`)) return;
+
+  // Update local state for the cascade in one pass (rather than looping
+  // deleteSource/deleteCategory, which would each trigger their own Gist
+  // round-trip and rebuild).
+  const userSources: Source[] = JSON.parse(localStorage.getItem(KEYS.userSources) ?? '[]');
+  localStorage.setItem(KEYS.userSources, JSON.stringify(userSources.filter((s) => !sourceIds.has(s.id))));
+  for (const s of sourceIds) addToIdList(KEYS.deletedSources, s);
+
+  const userCats: Category[] = JSON.parse(localStorage.getItem(KEYS.userCategories) ?? '[]');
+  localStorage.setItem(KEYS.userCategories, JSON.stringify(userCats.filter((c) => !categoryIds.has(c.id))));
+  for (const c of categoryIds) addToIdList(KEYS.deletedCategories, c);
+
+  const hidden: string[] = JSON.parse(localStorage.getItem(KEYS.hiddenSources) ?? '[]');
+  localStorage.setItem(KEYS.hiddenSources, JSON.stringify(hidden.filter((h) => !sourceIds.has(h))));
+
+  const selected = getSelectedKeywords();
+  for (const c of categoryIds) delete selected[c];
+  localStorage.setItem(KEYS.selectedKeywords, JSON.stringify(selected));
+
+  const userEnvs: Environment[] = JSON.parse(localStorage.getItem(KEYS.userEnvironments) ?? '[]');
+  localStorage.setItem(KEYS.userEnvironments, JSON.stringify(userEnvs.filter((e) => e.id !== id)));
+  addToIdList(KEYS.deletedEnvironments, id);
+
+  const remaining = getAllEnvironments().filter((e) => e.id !== id);
+  const nextEnv = remaining[0]?.id ?? '';
+  localStorage.setItem(KEYS.environment, nextEnv);
+  updateEnvironmentUI(nextEnv);
+
+  updateGistContent((current) => ({
+    sources: current.sources.filter((s) => !sourceIds.has(s.id)),
+    categories: current.categories.filter((c) => !categoryIds.has(c.id)),
+    environments: current.environments.filter((e) => e.id !== id),
+  }));
 }
 
 function deleteSource(id: string) {
@@ -531,7 +633,7 @@ function renderKeywordsPanel() {
     <span>🔖 Contenu sauvegardé</span>
   </label>`;
 
-  const categoryBlocks = getAllCategories()
+  const categoryBlocks = getEnvironmentCategories(getActiveEnvironment())
     .map((cat) => {
       const selectedForCat = new Set(selected[cat.id] ?? []);
       const keywordRows = cat.keywords
@@ -603,21 +705,34 @@ document.getElementById('keywords-filter-panel')?.addEventListener('change', (e)
 });
 
 // --- Environment switcher ---
-function updateEnvironmentUI(env: 'tech' | 'humanites') {
-  // Update button styles
-  document.querySelectorAll<HTMLElement>('.env-btn').forEach((btn) => {
-    const active = btn.dataset.env === env;
-    btn.setAttribute('aria-pressed', String(active));
-    btn.classList.toggle('bg-indigo-500', active);
-    btn.classList.toggle('text-white', active);
-    btn.classList.toggle('bg-zinc-800', !active);
-    btn.classList.toggle('text-zinc-400', !active);
-  });
+function renderEnvironmentSwitcher(activeEnv: string) {
+  const switcher = document.getElementById('env-switcher');
+  if (!switcher) return;
 
-  const envLabel = document.getElementById('env-label');
-  if (envLabel) {
-    envLabel.textContent = env === 'tech' ? 'tech dashboard' : 'humanités dashboard';
-  }
+  switcher.innerHTML = getAllEnvironments()
+    .map((e) => {
+      const active = e.id === activeEnv;
+      const activeClasses = active ? 'bg-indigo-500 text-white' : 'bg-zinc-800 text-zinc-400';
+      return `<span class="env-btn-wrap inline-flex items-center rounded-full ${activeClasses} transition">
+        <button
+          type="button"
+          class="env-btn px-3 py-1 text-xs font-semibold rounded-full"
+          data-env="${e.id}"
+          aria-pressed="${active}"
+        >${escapeHtml(e.name)}</button>
+        <button
+          type="button"
+          class="env-delete-btn pr-2 text-xs opacity-60 hover:opacity-100"
+          data-delete-env="${e.id}"
+          title="Supprimer cet environnement"
+        >✕</button>
+      </span>`;
+    })
+    .join('');
+}
+
+function updateEnvironmentUI(env: string) {
+  renderEnvironmentSwitcher(env);
 
   // Repopulate SourceFilter
   const panel = document.getElementById('source-filter-panel');
@@ -648,12 +763,24 @@ function updateEnvironmentUI(env: 'tech' | 'humanites') {
   applyFilters();
 }
 
-document.querySelectorAll<HTMLElement>('.env-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const env = (btn.dataset.env ?? 'tech') as 'tech' | 'humanites';
+document.getElementById('env-switcher')?.addEventListener('click', (e) => {
+  const deleteBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-delete-env]');
+  if (deleteBtn) {
+    deleteEnvironment(deleteBtn.dataset.deleteEnv!);
+    return;
+  }
+
+  const envBtn = (e.target as HTMLElement).closest<HTMLElement>('.env-btn');
+  if (envBtn) {
+    const env = envBtn.dataset.env!;
     localStorage.setItem(KEYS.environment, env);
     updateEnvironmentUI(env);
-  });
+  }
+});
+
+document.getElementById('add-env-btn')?.addEventListener('click', () => {
+  const name = prompt('Nom du nouvel environnement :')?.trim();
+  if (name) addEnvironment(name);
 });
 
 // --- Max age selector ---
@@ -694,8 +821,18 @@ document.addEventListener('change', (e) => {
   }
 });
 
+function populateEnvironmentSelect(selectId: string) {
+  const select = document.getElementById(selectId) as HTMLSelectElement | null;
+  if (!select) return;
+  const active = getActiveEnvironment();
+  select.innerHTML = getAllEnvironments()
+    .map((e) => `<option value="${e.id}" ${e.id === active ? 'selected' : ''}>${escapeHtml(e.name)}</option>`)
+    .join('');
+}
+
 // --- Add Category modal ---
 document.getElementById('open-add-category')?.addEventListener('click', () => {
+  populateEnvironmentSelect('category-environment-select');
   (document.getElementById('add-category-modal') as HTMLDialogElement)?.showModal();
 });
 document.getElementById('cancel-category')?.addEventListener('click', () => {
@@ -707,12 +844,13 @@ document.getElementById('add-category-form')?.addEventListener('submit', (e) => 
   const name = (form.elements.namedItem('name') as HTMLInputElement).value.trim();
   const keywords = (form.elements.namedItem('keywords') as HTMLTextAreaElement)
     .value.split(',').map((k) => k.trim()).filter(Boolean);
+  const environment = String(new FormData(form).get('environment')) || getActiveEnvironment();
   if (!name || keywords.length === 0) return;
 
   const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   const userCats: Category[] = JSON.parse(localStorage.getItem(KEYS.userCategories) ?? '[]');
   if (!userCats.find((c) => c.id === id)) {
-    userCats.push({ id, name, keywords });
+    userCats.push({ id, name, keywords, environment });
     localStorage.setItem(KEYS.userCategories, JSON.stringify(userCats));
     renderKeywordsPanel();
   }
@@ -720,11 +858,12 @@ document.getElementById('add-category-form')?.addEventListener('submit', (e) => 
   form.reset();
   (document.getElementById('add-category-modal') as HTMLDialogElement)?.close();
 
-  syncToGist({ categories: [{ id, name, keywords }] });
+  syncToGist({ categories: [{ id, name, keywords, environment }] });
 });
 
 // --- Add Source modal ---
 document.getElementById('open-add-source')?.addEventListener('click', () => {
+  populateEnvironmentSelect('source-environment-select');
   (document.getElementById('add-source-modal') as HTMLDialogElement)?.showModal();
 });
 document.getElementById('cancel-source')?.addEventListener('click', () => {
@@ -737,7 +876,7 @@ document.getElementById('add-source-form')?.addEventListener('submit', (e) => {
   const name = String(data.get('name')).trim();
   const url = String(data.get('url')).trim();
   const type = String(data.get('type'));
-  const environment = (String(data.get('environment')) as 'tech' | 'humanites') || getActiveEnvironment();
+  const environment = String(data.get('environment')) || getActiveEnvironment();
 
   const id = `user-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
   const userSources: Source[] = JSON.parse(localStorage.getItem(KEYS.userSources) ?? '[]');

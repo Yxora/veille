@@ -1,10 +1,11 @@
-import type { Source, Category } from './types';
+import type { Source, Category, Environment } from './types';
 
 export const GIST_FILENAME = 'veille-data.json';
 
 export interface GistPayload {
   sources?: Source[];
   categories?: Category[];
+  environments?: Environment[];
 }
 
 /**

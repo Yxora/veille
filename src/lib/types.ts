@@ -11,17 +11,23 @@ export interface ContentItem {
   description?: string; // feed summary/description, also used for keyword matching
 }
 
+export interface Environment {
+  id: string;
+  name: string;
+}
+
 export interface Source {
   id: string;
   name: string;
   url: string;
   type: 'rss' | 'devto' | 'reddit' | 'youtube';
   params?: Record<string, string>;
-  environment?: 'tech' | 'humanites';
+  environment?: string; // Environment id
 }
 
 export interface Category {
   id: string;
   name: string;
   keywords: string[];
+  environment?: string; // Environment id
 }

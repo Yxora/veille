@@ -1,7 +1,8 @@
 ---
-import type { Source, Category } from '../lib/types';
+import type { Source, Category, Environment } from '../lib/types';
 import sourcesData from '../data/sources.json';
 import categoriesData from '../data/categories.json';
+import environmentsData from '../data/environments.json';
 import { fetchAllSources } from '../lib/sources';
 import { annotateItems } from '../lib/categories';
 import { fetchGistData } from '../lib/gist';
@@ -23,6 +24,7 @@ const gistData = await fetchGistData();
 
 const sources = [...(sourcesData as Source[]), ...(gistData.sources ?? [])];
 const baseCategories = [...(categoriesData as Category[]), ...(gistData.categories ?? [])];
+const environments = [...(environmentsData as Environment[]), ...(gistData.environments ?? [])];
 
 let allItems = await fetchAllSources(sources).catch((err) => {
   console.error('[Veilleuse] fetchAllSources error:', err);
@@ -35,6 +37,7 @@ allItems.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
 const itemsJson = JSON.stringify(allItems);
 const sourcesJson = JSON.stringify(sources);
 const categoriesJson = JSON.stringify(baseCategories);
+const environmentsJson = JSON.stringify(environments);
 ---
 
 <!DOCTYPE html>
@@ -51,6 +54,7 @@ const categoriesJson = JSON.stringify(baseCategories);
   <script id="veille-data" type="application/json" set:html={itemsJson}></script>
   <script id="veille-sources" type="application/json" set:html={sourcesJson}></script>
   <script id="veille-categories" type="application/json" set:html={categoriesJson}></script>
+  <script id="veille-environments" type="application/json" set:html={environmentsJson}></script>
 
   <main class="max-w-7xl mx-auto px-4 py-6">
     <div class="flex flex-wrap gap-3 items-center mb-6">

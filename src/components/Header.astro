@@ -6,17 +6,8 @@ const logoSrc = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/veilleuse-icon.p
     <img src={logoSrc} alt="Veilleuse" class="h-8 w-8 rounded-full object-cover" />
     <span class="text-xl font-bold text-indigo-400">Veilleuse</span>
     <div class="flex items-center gap-1" id="env-switcher" role="group" aria-label="Environnement">
-      <button
-        class="env-btn px-3 py-1 text-xs font-semibold rounded-full transition"
-        data-env="tech"
-        aria-pressed="true"
-      >Tech</button>
-      <button
-        class="env-btn px-3 py-1 text-xs font-semibold rounded-full transition"
-        data-env="humanites"
-        aria-pressed="false"
-      >Humanités</button>
+      <!-- Populated client-side by island.ts — environments can be added/removed at runtime. -->
     </div>
-    <span class="text-xs text-zinc-500" id="env-label">tech dashboard</span>
+    <button id="add-env-btn" class="text-zinc-500 hover:text-indigo-400 transition text-sm px-1.5" title="Nouvel environnement">+</button>
   </div>
 </header>
