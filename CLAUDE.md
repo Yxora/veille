@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-"Veille" — a personal tech-news dashboard built with Astro, deployed as a static site on GitHub Pages via GitHub Actions. It fetches articles, videos, and podcasts from ~20 sources (RSS feeds, Dev.to API, Reddit JSON API, YouTube Data API v3) at build time, annotates them with categories via keyword matching, and renders a filterable dark-mode UI.
+"Veille" — a personal tech-news dashboard built with Astro, deployed as a static site on GitHub Pages via GitHub Actions. It fetches articles, videos, and podcasts from sources (RSS feeds, Dev.to API, Reddit JSON API, YouTube Data API v3) at build time, annotates them with categories via keyword matching, and renders a filterable dark-mode UI.
+
+`src/data/sources.json` and `src/data/categories.json` ship empty (`[]`) — this repo is meant to be forked as a neutral starting point, with each fork's actual sources/categories living in their own Gist (see "User customisations" below) and/or added through the UI.
 
 ## Commands
 
@@ -51,7 +53,7 @@ GIST_TOKEN=your_pat            # optional, only needed for a private Gist
 
 ### Adding a new source
 
-Edit `src/data/sources.json`. Each entry needs `id`, `name`, `url`, `type` (`rss`/`devto`/`reddit`/`youtube`), optional `params`, and `defaultCategories`. The source is automatically included in the next page render.
+Edit `src/data/sources.json` (empty by default — see "Project" above), or add it through the UI / a synced Gist. Each entry needs `id`, `name`, `url`, `type` (`rss`/`devto`/`reddit`/`youtube`), optional `params`, and `defaultCategories`. The source is automatically included in the next page render.
 
 ### Adding a new source type
 
@@ -81,9 +83,3 @@ This is what makes "one client, many people's own sources" possible: everyone fo
 - Optionally set `GIST_ID` (and `GIST_TOKEN` for a private Gist) the same way, for the Gist-backed sources described above
 - In repo Settings → Pages, set the source to "GitHub Actions"
 - `site` and `base` in `astro.config.mjs` are set for the `marionLa/veille` project page (`https://marionla.github.io/veille`) — update both if the repo is renamed or moved to a user/org page or forked under a different name
-
-## Sources status
-
-Known unavailable RSS feeds (skipped from `sources.json`):
-- IFTTD podcast — no public RSS feed (Webflow site, Spotify/Apple only)
-- Marmicode — no RSS feed (Angular SSR site)
