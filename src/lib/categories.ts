@@ -1,10 +1,12 @@
 import type { ContentItem, Category } from './types';
 
 export function matchCategories(
-  item: Pick<ContentItem, 'title' | 'tags'>,
+  item: Pick<ContentItem, 'title' | 'tags' | 'description'>,
   categories: Category[]
 ): string[] {
-  const haystack = [item.title, ...(item.tags ?? [])].join(' ').toLowerCase();
+  const haystack = [item.title, ...(item.tags ?? []), item.description ?? '']
+    .join(' ')
+    .toLowerCase();
   return categories
     .filter((cat) => cat.keywords.some((kw) => haystack.includes(kw.toLowerCase())))
     .map((cat) => cat.id);

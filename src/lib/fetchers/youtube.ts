@@ -20,7 +20,7 @@ export async function fetchYouTube(source: Source): Promise<ContentItem[]> {
   const data = (await res.json()) as {
     items: Array<{
       id: { videoId: string };
-      snippet: { title: string; publishedAt: string };
+      snippet: { title: string; publishedAt: string; description?: string };
     }>;
   };
 
@@ -33,5 +33,6 @@ export async function fetchYouTube(source: Source): Promise<ContentItem[]> {
     publishedAt: new Date(item.snippet.publishedAt).toISOString(),
     categories: [],
     type: 'video',
+    description: item.snippet.description?.slice(0, 400),
   }));
 }

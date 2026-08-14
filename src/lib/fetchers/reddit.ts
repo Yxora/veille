@@ -21,6 +21,7 @@ export async function fetchReddit(source: Source): Promise<ContentItem[]> {
           stickied: boolean;
           created_utc: number;
           link_flair_text: string | null;
+          selftext: string;
         };
       }>;
     };
@@ -41,5 +42,6 @@ export async function fetchReddit(source: Source): Promise<ContentItem[]> {
       categories: [],
       type: 'article',
       tags: p.data.link_flair_text ? [p.data.link_flair_text] : [],
+      description: p.data.selftext ? p.data.selftext.slice(0, 400) : undefined,
     }));
 }

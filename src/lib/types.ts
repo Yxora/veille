@@ -8,6 +8,7 @@ export interface ContentItem {
   categories: string[]; // matched category ids
   type: 'article' | 'video' | 'podcast';
   tags?: string[]; // raw tags/categories from the source feed, used for matching alongside the title
+  description?: string; // feed summary/description, also used for keyword matching
 }
 
 export interface Source {

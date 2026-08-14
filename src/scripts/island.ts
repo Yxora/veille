@@ -8,6 +8,7 @@ interface ContentItem {
   categories: string[];
   type: 'article' | 'video' | 'podcast';
   tags?: string[];
+  description?: string;
 }
 
 interface Category {
@@ -232,8 +233,13 @@ function loadState() {
   };
 }
 
-function matchCategories(item: Pick<ContentItem, 'title' | 'tags'>, categories: Category[]): string[] {
-  const haystack = [item.title, ...(item.tags ?? [])].join(' ').toLowerCase();
+function matchCategories(
+  item: Pick<ContentItem, 'title' | 'tags' | 'description'>,
+  categories: Category[]
+): string[] {
+  const haystack = [item.title, ...(item.tags ?? []), item.description ?? '']
+    .join(' ')
+    .toLowerCase();
   return categories
     .filter((cat) => cat.keywords.some((kw) => haystack.includes(kw.toLowerCase())))
     .map((cat) => cat.id);

@@ -54,6 +54,25 @@ function decodeEntities(text: string): string {
   });
 }
 
+const MAX_DESCRIPTION_LENGTH = 400;
+
+function extractText(field: unknown): string {
+  if (typeof field === 'string') return field;
+  if (typeof field === 'object' && field !== null) {
+    return String((field as Record<string, unknown>)['#text'] ?? '');
+  }
+  return '';
+}
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function extractDescription(raw: unknown): string {
+  const text = decodeEntities(stripHtml(extractText(raw)));
+  return text.length > MAX_DESCRIPTION_LENGTH ? text.slice(0, MAX_DESCRIPTION_LENGTH) : text;
+}
+
 function extractCategories(catField: unknown): string[] {
   if (catField == null) return [];
   const arr = Array.isArray(catField) ? catField : [catField];
@@ -104,6 +123,7 @@ export async function fetchRss(source: Source): Promise<ContentItem[]> {
         categories: [],
         type: source.params?.contentType === 'podcast' ? 'podcast' : 'article',
         tags: extractCategories(entry.category),
+        description: extractDescription(entry.summary ?? entry.content),
       } satisfies ContentItem;
     });
   }
@@ -138,6 +158,7 @@ export async function fetchRss(source: Source): Promise<ContentItem[]> {
         categories: [],
         type: source.params?.contentType === 'podcast' ? 'podcast' : 'article',
         tags: extractCategories(item.category),
+        description: extractDescription(item.description),
       } satisfies ContentItem;
     });
   }

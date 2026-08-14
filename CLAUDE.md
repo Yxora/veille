@@ -30,7 +30,7 @@ GIST_TOKEN=your_pat            # optional, only needed for a private Gist
 1. `src/pages/index.astro` calls `fetchAllSources(sources)` once, at **build time** (static output — there is no per-request server)
 2. `src/lib/sources.ts` dispatches each source to the right fetcher via a `FETCHERS` record keyed by `Source['type']`
 3. Fetchers return `ContentItem[]`; failures are caught by `Promise.allSettled` and logged — one broken source never kills the build
-4. `annotateItems()` from `src/lib/categories.ts` does case-insensitive keyword matching against `src/data/categories.json` to assign category IDs to each item — matched against the title plus any `tags` the fetcher extracted from the feed (RSS `<category>`, Dev.to `tag_list`, Reddit flair)
+4. `annotateItems()` from `src/lib/categories.ts` does case-insensitive keyword matching against `src/data/categories.json` to assign category IDs to each item — matched against the title, any `tags` the fetcher extracted from the feed (RSS `<category>`, Dev.to `tag_list`, Reddit flair), and the item's `description` (RSS `<description>`/`<summary>`, Dev.to/YouTube description, Reddit selftext — HTML-stripped and capped at 400 chars)
 5. All data is serialized into three `<script type="application/json">` islands in the HTML
 6. `src/scripts/island.ts` (vanilla TS, no framework) reads those islands and re-renders the grid based on localStorage state (active theme, hidden sources, user-added categories/sources)
 7. Because content is now baked in at build time, freshness depends on how often the site rebuilds — see Deployment below
