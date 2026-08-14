@@ -75,6 +75,10 @@ Flow: adding a source/category → saved to `localStorage` (instant UI) → PATC
 
 Deletion works the same way in reverse, from the **🗑 Gérer** modal (`ManageModal.astro`): removing a source/category calls `deleteSource()`/`deleteCategory()` in `island.ts`, which drops it from `localStorage`, records its id in `veille:deletedSources`/`veille:deletedCategories` (so it's hidden immediately even before the next build), and calls `removeFromGist()` to PATCH it out of the Gist and trigger a rebuild.
 
+### Saved items
+
+Each card has a 🔖 button (`renderCard()` in `island.ts`) that saves/unsaves an item into `localStorage` under `veille:savedItems` — **as a full `ContentItem` snapshot, not just an id**, since articles aren't persisted anywhere server-side and would otherwise vanish once they roll off the source feed's fetch window on a later rebuild. A synthetic `__saved__` entry is always injected into the Mots clés `<select>` (`updateEnvironmentUI()`); selecting it filters to saved items, unioning in any saved snapshots that are no longer in the live `allItems` list. Clicking 🔖 again on a saved item (from any view, including the saved view itself) removes it — there's no separate delete UI, unsaving *is* deleting.
+
 This is what makes "one client, many people's own sources" possible: everyone forks the same code, but points their fork at their own Gist — no code changes needed per person.
 
 ## Deployment

@@ -37,7 +37,25 @@ const KEYS = {
   githubToken: 'veille:githubToken',
   deletedSources: 'veille:deletedSources',
   deletedCategories: 'veille:deletedCategories',
+  savedItems: 'veille:savedItems',
 };
+
+const SAVED_THEME_ID = '__saved__';
+
+function getSavedItems(): ContentItem[] {
+  return JSON.parse(localStorage.getItem(KEYS.savedItems) ?? '[]');
+}
+
+function toggleSaved(item: ContentItem) {
+  const saved = getSavedItems();
+  const idx = saved.findIndex((i) => i.id === item.id);
+  if (idx !== -1) {
+    saved.splice(idx, 1);
+  } else {
+    saved.push(item);
+  }
+  localStorage.setItem(KEYS.savedItems, JSON.stringify(saved));
+}
 
 function getIdList(key: string): string[] {
   return JSON.parse(localStorage.getItem(key) ?? '[]');
@@ -285,8 +303,9 @@ function relativeDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
-function renderCard(item: ContentItem): string {
+function renderCard(item: ContentItem, savedIds: Set<string>): string {
   const icon = ICONS[item.type] ?? '📄';
+  const saved = savedIds.has(item.id);
   return `<article
     class="bg-zinc-800 rounded-xl p-4 flex flex-col gap-2 hover:ring-1 hover:ring-indigo-400 transition"
     data-source="${item.sourceId}"
@@ -303,6 +322,12 @@ function renderCard(item: ContentItem): string {
     <div class="flex items-center gap-2 mt-auto text-xs text-zinc-400">
       <span class="bg-zinc-700 px-2 py-0.5 rounded-full shrink-0">${item.sourceName}</span>
       <span>${relativeDate(item.publishedAt)}</span>
+      <button
+        type="button"
+        class="save-toggle ml-auto text-sm leading-none transition cursor-pointer ${saved ? 'text-indigo-400' : 'text-zinc-600 hover:text-zinc-300'}"
+        data-save-id="${item.id}"
+        title="${saved ? 'Retirer des favoris' : 'Sauvegarder'}"
+      >🔖</button>
     </div>
   </article>`;
 }
@@ -315,7 +340,7 @@ const TYPE_LABELS: Record<string, string> = {
 
 const TYPE_ORDER = ['video', 'podcast', 'article'] as const;
 
-function renderSection(type: string, items: ContentItem[]): string {
+function renderSection(type: string, items: ContentItem[], savedIds: Set<string>): string {
   if (items.length === 0) return '';
   const label = TYPE_LABELS[type] ?? type;
   const icon = ICONS[type] ?? '📄';
@@ -325,7 +350,7 @@ function renderSection(type: string, items: ContentItem[]): string {
       <span class="text-xs font-normal text-zinc-500">${items.length}</span>
     </h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      ${items.map(renderCard).join('')}
+      ${items.map((item) => renderCard(item, savedIds)).join('')}
     </div>
   </section>`;
 }
@@ -334,6 +359,16 @@ const searchInput = document.getElementById('search-input') as HTMLInputElement 
 
 searchInput?.addEventListener('input', () => applyFilters());
 
+document.getElementById('articles-grid')?.addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest<HTMLElement>('.save-toggle');
+  if (!btn) return;
+  const id = btn.dataset.saveId!;
+  const item = allItems.find((i) => i.id === id) ?? getSavedItems().find((i) => i.id === id);
+  if (!item) return;
+  toggleSaved(item);
+  applyFilters();
+});
+
 function applyFilters() {
   const { activeTheme, activeType, hiddenSources, activeEnvironment } = loadState();
   const allCategories = getAllCategories();
@@ -341,11 +376,22 @@ function applyFilters() {
 
   const envSourceIds = new Set(getEnvironmentSources(activeEnvironment).map((s) => s.id));
 
-  const preFiltered = allItems
+  const savedItems = getSavedItems();
+  const savedIds = new Set(savedItems.map((i) => i.id));
+  const liveIds = new Set(allItems.map((i) => i.id));
+  // Saved items that have rolled off the source feed (and so aren't in
+  // allItems anymore) still need to show up when browsing saved content.
+  const baseList =
+    activeTheme === SAVED_THEME_ID
+      ? [...allItems, ...savedItems.filter((i) => !liveIds.has(i.id))]
+      : allItems;
+
+  const preFiltered = baseList
     .filter((item) => envSourceIds.has(item.sourceId))
     .filter((item) => !hiddenSources.includes(item.sourceId))
     .filter((item) => {
       if (!activeTheme) return true;
+      if (activeTheme === SAVED_THEME_ID) return savedIds.has(item.id);
       const cats = matchCategories(item, allCategories);
       return cats.includes(activeTheme) || item.categories.includes(activeTheme);
     })
@@ -385,9 +431,9 @@ function applyFilters() {
   } else {
     noResults.classList.add('hidden');
     if (activeType === 'all') {
-      grid.innerHTML = TYPE_ORDER.map((t) => renderSection(t, byType[t] ?? [])).join('');
+      grid.innerHTML = TYPE_ORDER.map((t) => renderSection(t, byType[t] ?? [], savedIds)).join('');
     } else {
-      grid.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">${visible.map(renderCard).join('')}</div>`;
+      grid.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">${visible.map((item) => renderCard(item, savedIds)).join('')}</div>`;
     }
   }
 
@@ -443,6 +489,10 @@ function updateEnvironmentUI(env: 'tech' | 'humanites') {
     const allCats = getAllCategories();
 
     themeSelect.innerHTML = '<option value="">— Tout voir —</option>';
+    const savedOpt = document.createElement('option');
+    savedOpt.value = SAVED_THEME_ID;
+    savedOpt.textContent = '🔖 Contenu sauvegardé';
+    themeSelect.appendChild(savedOpt);
     allCats
       .filter((cat) => envCatIds.has(cat.id))
       .forEach((cat) => {
@@ -453,7 +503,7 @@ function updateEnvironmentUI(env: 'tech' | 'humanites') {
       });
 
     // Clear active theme if it doesn't belong to the new env
-    if (currentTheme && !envCatIds.has(currentTheme)) {
+    if (currentTheme && currentTheme !== SAVED_THEME_ID && !envCatIds.has(currentTheme)) {
       localStorage.setItem(KEYS.theme, '');
       themeSelect.value = '';
     } else {
