@@ -2,6 +2,12 @@
 
 @custom-variant dark (&:is(.dark, .dark *));
 
+/* Tailwind's preflight resets margin to 0 on every element, which breaks
+   the browser's default auto-centering of <dialog>. Restore it. */
+dialog {
+  margin: auto;
+}
+
 @layer utilities {
   .btn-primary {
     @apply bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition cursor-pointer;

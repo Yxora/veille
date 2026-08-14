@@ -177,16 +177,37 @@ function getActiveEnvironment(): 'tech' | 'humanites' {
   return (localStorage.getItem(KEYS.environment) as 'tech' | 'humanites') ?? 'tech';
 }
 
+// Once a locally-added source/category has been synced to the Gist and the
+// site rebuilt, it comes back through baseSources/baseCategories — drop the
+// now-redundant localStorage copy so it doesn't get listed twice.
+function pruneSyncedUserItems() {
+  const baseSourceIds = new Set(baseSources.map((s) => s.id));
+  const userSources: Source[] = JSON.parse(localStorage.getItem(KEYS.userSources) ?? '[]');
+  const prunedSources = userSources.filter((s) => !baseSourceIds.has(s.id));
+  if (prunedSources.length !== userSources.length) {
+    localStorage.setItem(KEYS.userSources, JSON.stringify(prunedSources));
+  }
+
+  const baseCategoryIds = new Set(baseCategories.map((c) => c.id));
+  const userCats: Category[] = JSON.parse(localStorage.getItem(KEYS.userCategories) ?? '[]');
+  const prunedCats = userCats.filter((c) => !baseCategoryIds.has(c.id));
+  if (prunedCats.length !== userCats.length) {
+    localStorage.setItem(KEYS.userCategories, JSON.stringify(prunedCats));
+  }
+}
+
 function getAllSources(): Source[] {
+  const baseIds = new Set(baseSources.map((s) => s.id));
   const userSources: Source[] = JSON.parse(localStorage.getItem(KEYS.userSources) ?? '[]');
   const deleted = new Set(getIdList(KEYS.deletedSources));
-  return [...baseSources, ...userSources].filter((s) => !deleted.has(s.id));
+  return [...baseSources, ...userSources.filter((s) => !baseIds.has(s.id))].filter((s) => !deleted.has(s.id));
 }
 
 function getAllCategories(): Category[] {
+  const baseIds = new Set(baseCategories.map((c) => c.id));
   const userCats: Category[] = JSON.parse(localStorage.getItem(KEYS.userCategories) ?? '[]');
   const deleted = new Set(getIdList(KEYS.deletedCategories));
-  return [...baseCategories, ...userCats].filter((c) => !deleted.has(c.id));
+  return [...baseCategories, ...userCats.filter((c) => !baseIds.has(c.id))].filter((c) => !deleted.has(c.id));
 }
 
 function getEnvironmentSources(env: 'tech' | 'humanites'): Source[] {
@@ -233,15 +254,21 @@ function loadState() {
   };
 }
 
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function keywordRegex(keyword: string): RegExp {
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(keyword)}(?![\\p{L}\\p{N}])`, 'iu');
+}
+
 function matchCategories(
   item: Pick<ContentItem, 'title' | 'tags' | 'description'>,
   categories: Category[]
 ): string[] {
-  const haystack = [item.title, ...(item.tags ?? []), item.description ?? '']
-    .join(' ')
-    .toLowerCase();
+  const haystack = [item.title, ...(item.tags ?? []), item.description ?? ''].join(' ');
   return categories
-    .filter((cat) => cat.keywords.some((kw) => haystack.includes(kw.toLowerCase())))
+    .filter((cat) => cat.keywords.some((kw) => keywordRegex(kw).test(haystack)))
     .map((cat) => cat.id);
 }
 
@@ -610,7 +637,7 @@ function renderManageLists() {
     const categories = getAllCategories();
     categoriesList.innerHTML = categories.length
       ? categories.map((c) => renderRow(c.id, c.name, 'data-delete-category')).join('')
-      : '<p class="text-xs text-zinc-500">Aucun thème.</p>';
+      : '<p class="text-xs text-zinc-500">Aucun mot clé.</p>';
   }
 }
 
@@ -634,7 +661,7 @@ document.getElementById('manage-categories-list')?.addEventListener('click', (e)
   const target = (e.target as HTMLElement).closest<HTMLElement>('[data-delete-category]');
   if (!target) return;
   const id = target.dataset.deleteCategory!;
-  if (confirm(`Supprimer le thème « ${target.dataset.name} » ?`)) {
+  if (confirm(`Supprimer le mot clé « ${target.dataset.name} » ?`)) {
     deleteCategory(id);
     renderManageLists();
   }
@@ -649,4 +676,5 @@ document.querySelectorAll<HTMLElement>('.content-type-tab').forEach((btn) => {
 });
 
 // --- Initial render ---
+pruneSyncedUserItems();
 updateEnvironmentUI(getActiveEnvironment());
