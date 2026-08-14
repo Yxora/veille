@@ -35,6 +35,22 @@ function slugify(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 40);
 }
 
+function extractCategories(catField: unknown): string[] {
+  if (catField == null) return [];
+  const arr = Array.isArray(catField) ? catField : [catField];
+  return arr
+    .map((c) => {
+      if (typeof c === 'string') return c;
+      if (typeof c === 'object' && c !== null) {
+        const obj = c as Record<string, unknown>;
+        return String(obj['@_term'] ?? obj['#text'] ?? '');
+      }
+      return '';
+    })
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 export async function fetchRss(source: Source): Promise<ContentItem[]> {
   const res = await fetch(source.url, {
     headers: { 'User-Agent': 'Veille/1.0 tech-dashboard' },
@@ -68,6 +84,7 @@ export async function fetchRss(source: Source): Promise<ContentItem[]> {
         ),
         categories: [],
         type: source.params?.contentType === 'podcast' ? 'podcast' : 'article',
+        tags: extractCategories(entry.category),
       } satisfies ContentItem;
     });
   }
@@ -101,6 +118,7 @@ export async function fetchRss(source: Source): Promise<ContentItem[]> {
         ),
         categories: [],
         type: source.params?.contentType === 'podcast' ? 'podcast' : 'article',
+        tags: extractCategories(item.category),
       } satisfies ContentItem;
     });
   }

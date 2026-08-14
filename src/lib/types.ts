@@ -7,6 +7,7 @@ export interface ContentItem {
   publishedAt: string; // ISO 8601
   categories: string[]; // matched category ids
   type: 'article' | 'video' | 'podcast';
+  tags?: string[]; // raw tags/categories from the source feed, used for matching alongside the title
 }
 
 export interface Source {

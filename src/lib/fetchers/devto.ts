@@ -15,6 +15,7 @@ export async function fetchDevto(source: Source): Promise<ContentItem[]> {
     title: string;
     url: string;
     published_at: string;
+    tag_list?: string[];
   }>;
 
   return articles.map((a) => ({
@@ -26,5 +27,6 @@ export async function fetchDevto(source: Source): Promise<ContentItem[]> {
     publishedAt: new Date(a.published_at).toISOString(),
     categories: [],
     type: 'article',
+    tags: a.tag_list ?? [],
   }));
 }

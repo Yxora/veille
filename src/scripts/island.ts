@@ -7,6 +7,7 @@ interface ContentItem {
   publishedAt: string;
   categories: string[];
   type: 'article' | 'video' | 'podcast';
+  tags?: string[];
 }
 
 interface Category {
@@ -152,10 +153,10 @@ function loadState() {
   };
 }
 
-function matchCategories(title: string, categories: Category[]): string[] {
-  const lower = title.toLowerCase();
+function matchCategories(item: Pick<ContentItem, 'title' | 'tags'>, categories: Category[]): string[] {
+  const haystack = [item.title, ...(item.tags ?? [])].join(' ').toLowerCase();
   return categories
-    .filter((cat) => cat.keywords.some((kw) => lower.includes(kw.toLowerCase())))
+    .filter((cat) => cat.keywords.some((kw) => haystack.includes(kw.toLowerCase())))
     .map((cat) => cat.id);
 }
 
@@ -233,7 +234,7 @@ function applyFilters() {
     .filter((item) => !hiddenSources.includes(item.sourceId))
     .filter((item) => {
       if (!activeTheme) return true;
-      const cats = matchCategories(item.title, allCategories);
+      const cats = matchCategories(item, allCategories);
       return cats.includes(activeTheme) || item.categories.includes(activeTheme);
     })
     .filter((item) => {

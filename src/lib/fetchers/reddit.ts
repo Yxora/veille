@@ -12,7 +12,18 @@ export async function fetchReddit(source: Source): Promise<ContentItem[]> {
   if (!res.ok) throw new Error(`Reddit ${source.url} → HTTP ${res.status}`);
 
   const data = (await res.json()) as {
-    data: { children: Array<{ data: { id: string; title: string; url: string; stickied: boolean; created_utc: number } }> };
+    data: {
+      children: Array<{
+        data: {
+          id: string;
+          title: string;
+          url: string;
+          stickied: boolean;
+          created_utc: number;
+          link_flair_text: string | null;
+        };
+      }>;
+    };
   };
   const posts = data?.data?.children ?? [];
 
@@ -29,5 +40,6 @@ export async function fetchReddit(source: Source): Promise<ContentItem[]> {
       publishedAt: new Date(p.data.created_utc * 1000).toISOString(),
       categories: [],
       type: 'article',
+      tags: p.data.link_flair_text ? [p.data.link_flair_text] : [],
     }));
 }
