@@ -56,25 +56,27 @@ function getRepoInfo(): { owner: string; repo: string } | null {
   return { owner, repo };
 }
 
-async function triggerRebuild(token: string) {
+async function triggerRebuild(token: string): Promise<void> {
   const repoInfo = getRepoInfo();
-  if (!repoInfo) return;
-  try {
-    const res = await fetch(
-      `https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/actions/workflows/${DEPLOY_WORKFLOW}/dispatches`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/vnd.github+json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ref: 'main' }),
-      }
-    );
-    if (!res.ok) throw new Error(`workflow_dispatch → HTTP ${res.status}`);
-  } catch (err) {
-    console.error('[Veille] triggerRebuild error:', err);
+  if (!repoInfo) throw new Error('Impossible de déterminer le dépôt (owner/repo) depuis l’URL du site.');
+
+  const res = await fetch(
+    `https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/actions/workflows/${DEPLOY_WORKFLOW}/dispatches`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ref: 'main' }),
+    }
+  );
+  if (!res.ok) {
+    const hint = res.status === 404 || res.status === 403
+      ? ' (vérifie que le token a le scope "repo")'
+      : '';
+    throw new Error(`workflow_dispatch → HTTP ${res.status}${hint}`);
   }
 }
 
@@ -108,11 +110,20 @@ async function syncToGist(payload: { sources?: Source[]; categories?: Category[]
       body: JSON.stringify({ files: { [filename]: { content: JSON.stringify(next, null, 2) } } }),
     });
     if (!patchRes.ok) throw new Error(`PATCH gist → HTTP ${patchRes.status}`);
-
-    await triggerRebuild(token);
   } catch (err) {
     console.error('[Veille] syncToGist error:', err);
-    alert("Échec de la synchronisation GitHub — vérifie le Gist ID et le token dans les réglages (⚙️ Sync GitHub).");
+    alert("Échec de l'écriture dans le Gist — vérifie le Gist ID et le token dans les réglages (⚙️ Sync GitHub).");
+    return;
+  }
+
+  try {
+    await triggerRebuild(token);
+  } catch (err) {
+    console.error('[Veille] triggerRebuild error:', err);
+    alert(
+      `Enregistré dans le Gist, mais le rebuild automatique a échoué (${(err as Error).message}). ` +
+      'Relance-le manuellement depuis l’onglet Actions du dépôt GitHub, ou attends le prochain cycle planifié.'
+    );
   }
 }
 
