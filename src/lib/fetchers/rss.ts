@@ -35,6 +35,22 @@ function slugify(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 40);
 }
 
+// djb2 hash of the full string, so two items whose first 40 slugified chars
+// happen to match (e.g. URLs sharing a long "/rubrique/2026/08/15/" prefix)
+// still get distinct ids instead of colliding on the same truncated slug.
+function hashSuffix(text: string): string {
+  let hash = 5381;
+  for (let i = 0; i < text.length; i++) {
+    hash = (hash * 33) ^ text.charCodeAt(i);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function buildId(sourceId: string, url: string, title: string): string {
+  const basis = url || title;
+  return `${sourceId}-${slugify(basis)}-${hashSuffix(basis)}`;
+}
+
 const NAMED_ENTITIES: Record<string, string> = {
   amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
 };
@@ -112,7 +128,7 @@ export async function fetchRss(source: Source): Promise<ContentItem[]> {
           ? String((rawTitle as Record<string, unknown>)['#text'] ?? '')
           : String(rawTitle ?? '(no title)');
       return {
-        id: `${source.id}-${slugify(url || title)}`,
+        id: buildId(source.id, url, title),
         title: decodeEntities(title.trim()),
         url,
         sourceId: source.id,
@@ -147,7 +163,7 @@ export async function fetchRss(source: Source): Promise<ContentItem[]> {
           ? String((rawTitle as Record<string, unknown>)['#text'] ?? '')
           : String(rawTitle ?? '(no title)');
       return {
-        id: `${source.id}-${slugify(url || title)}`,
+        id: buildId(source.id, url, title),
         title: decodeEntities(title.trim()),
         url,
         sourceId: source.id,

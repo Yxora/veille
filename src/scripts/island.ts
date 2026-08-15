@@ -473,6 +473,7 @@ function bookmarkIcon(saved: boolean): string {
 function renderCard(item: ContentItem, savedIds: Set<string>): string {
   const icon = ICONS[item.type] ?? '📄';
   const saved = savedIds.has(item.id);
+  const escapedTitle = item.title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   return `<article
     class="bg-zinc-800 rounded-xl p-4 flex flex-col gap-2 hover:ring-1 hover:ring-indigo-400 transition"
     data-source="${item.sourceId}"
@@ -481,9 +482,9 @@ function renderCard(item: ContentItem, savedIds: Set<string>): string {
   >
     <div class="flex items-start gap-2">
       <span class="text-base shrink-0 mt-0.5">${icon}</span>
-      <a href="${item.url}" target="_blank" rel="noopener noreferrer"
+      <a href="${item.url}" target="_blank" rel="noopener noreferrer" title="${escapedTitle}"
          class="text-zinc-100 text-sm font-medium leading-snug hover:text-indigo-400 transition line-clamp-3">
-        ${item.title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+        ${escapedTitle}
       </a>
     </div>
     <div class="flex items-center gap-2 mt-auto text-xs text-zinc-400">
